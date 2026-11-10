@@ -84,6 +84,17 @@ describe("cli", () => {
     expect(secretsOnly.findings.every((f) => f.engine === "secrets")).toBe(true);
     expect(secretsOnly.findings.length).toBe(1);
   });
+  it("writes html and markdown reports", async () => {
+    await mkdir(path.join(tmp, "r"));
+    await writeFile(path.join(tmp, "r", "a.js"), "el.innerHTML = location.hash;
+");
+    await run(["scan", "r", "-f", "html", "-o", "out.html", "-q", "--no-cache"]);
+    await run(["scan", "r", "-f", "md", "-o", "out.md", "-q", "--no-cache"]);
+    const html = await readFile(path.join(tmp, "out.html"), "utf8");
+    expect(html.startsWith("<!doctype html>")).toBe(true);
+    expect(html).toContain("Content-Security-Policy");
+    expect(await readFile(path.join(tmp, "out.md"), "utf8")).toContain("JS-TAINT-001");
+  });
   it("creates a config once", async () => {
     expect(await run(["config", "init"])).toBe(EXIT.OK);
     expect(await run(["config", "init"])).toBe(EXIT.USAGE);
