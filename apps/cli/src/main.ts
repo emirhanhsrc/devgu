@@ -10,6 +10,7 @@ import {
   defaultRedactor,
   defaultRules,
   loadConfig,
+  ruleCatalog,
   scan,
 } from "@devgu/core";
 import { REPORT_FORMATS, renderReport, type ReportFormat } from "@devgu/report-engine";
@@ -119,22 +120,19 @@ function usage(io: Io, message: string): number {
 }
 
 function runRulesCommand(args: string[], io: Io): number {
-  const rules = defaultRules();
+  const rules = ruleCatalog();
   if (args[0] === "list") {
-    const rows = rules
-      .map((r) => r.meta)
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .map(
-        (m) =>
-          `${m.id.padEnd(16)} ${m.severity.padEnd(8)} ${m.confidence.padEnd(6)} ${m.engine.padEnd(9)} ${m.name}`,
-      );
+    const rows = rules.map(
+      (m) =>
+        `${m.id.padEnd(16)} ${m.severity.padEnd(8)} ${m.confidence.padEnd(6)} ${m.engine.padEnd(9)} ${m.name}`,
+    );
     io.stdout(`${rows.join("\n")}\n${rules.length} rule(s)\n`);
     return EXIT.OK;
   }
   if (args[0] === "explain" && args[1]) {
-    const rule = rules.find((r) => r.meta.id.toLowerCase() === args[1]?.toLowerCase());
+    const rule = rules.find((r) => r.id.toLowerCase() === args[1]?.toLowerCase());
     if (!rule) return usage(io, `Unknown rule: ${stripControlChars(args[1])}`);
-    const m = rule.meta;
+    const m = rule;
     io.stdout(
       [
         `${m.id}  ${m.name}`,
@@ -244,7 +242,7 @@ async function runScan(
 
   const report = renderReport(format, result, {
     color: io.isTTY === true && !values.output,
-    rules: rules.map((r) => ({ ...r.meta })),
+    rules: ruleCatalog(),
   });
   if (values.output) {
     const target = path.resolve(io.cwd ?? process.cwd(), values.output);

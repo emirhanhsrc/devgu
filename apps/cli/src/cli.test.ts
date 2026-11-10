@@ -52,6 +52,38 @@ describe("cli", () => {
     expect(report.stats.filesScanned).toBe(1);
     expect(JSON.stringify(report)).not.toContain(tmp);
   });
+  it("lists and explains rules, including dependency findings", async () => {
+    expect(await run(["rules", "list"])).toBe(EXIT.OK);
+    expect(out).toContain("JS-XSS-001");
+    expect(out).toContain("JS-TAINT-001");
+    expect(out).toContain("DEP-VULN-001");
+    out = "";
+    expect(await run(["rules", "explain", "js-taint-001"])).toBe(EXIT.OK);
+    expect(out).toContain("Limitations:");
+    expect(await run(["rules", "explain", "NOPE-1"])).toBe(EXIT.USAGE);
+  });
+  it("fails the build only at or above --fail-on", async () => {
+    await mkdir(path.join(tmp, "p"));
+    await writeFile(path.join(tmp, "p", "a.js"), "eval(location.hash);\n");
+    expect(await run(["scan", "p", "-q", "--no-cache"])).toBe(EXIT.FINDINGS);
+    expect(await run(["scan", "p", "-q", "--no-cache", "--fail-on", "critical"])).toBe(
+      EXIT.FINDINGS,
+    );
+    await writeFile(path.join(tmp, "p", "a.js"), "setTimeout('go()', 1);\n");
+    expect(await run(["scan", "p", "-q", "--no-cache"])).toBe(EXIT.OK);
+    expect(await run(["scan", "p", "-q", "--no-cache", "--fail-on", "medium"])).toBe(EXIT.FINDINGS);
+  });
+  it("selects engines", async () => {
+    await mkdir(path.join(tmp, "q"));
+    await writeFile(
+      path.join(tmp, "q", "a.js"),
+      'eval(x);\nconst db = { password: "Tr0ub4dor&3xx" };\n',
+    );
+    await run(["scan", "q", "--secrets", "-f", "json", "-q", "--no-cache"]);
+    const secretsOnly = JSON.parse(out) as { findings: Array<{ engine: string }> };
+    expect(secretsOnly.findings.every((f) => f.engine === "secrets")).toBe(true);
+    expect(secretsOnly.findings.length).toBe(1);
+  });
   it("creates a config once", async () => {
     expect(await run(["config", "init"])).toBe(EXIT.OK);
     expect(await run(["config", "init"])).toBe(EXIT.USAGE);
