@@ -1,0 +1,11 @@
+{
+  "name": "@devgu/dependency-engine",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@devgu/shared": "*",
+    "zod": "^3.25.76"
+  }
+}
