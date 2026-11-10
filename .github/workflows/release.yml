@@ -32,7 +32,7 @@ jobs:
         if: env.NODE_AUTH_TOKEN != ''
         run: npm publish ./dist-bundle --provenance --access public
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: devgu-*.tgz
           generate_release_notes: true
