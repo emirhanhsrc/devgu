@@ -11,6 +11,9 @@
       "path": "packages/rule-engine"
     },
     {
+      "path": "packages/secret-scanner"
+    },
+    {
       "path": "packages/report-engine"
     },
     {

@@ -242,7 +242,10 @@ async function runScan(
   });
   if (showProgress) io.stderr("\r\u001b[K");
 
-  const report = renderReport(format, result, { color: io.isTTY === true && !values.output });
+  const report = renderReport(format, result, {
+    color: io.isTTY === true && !values.output,
+    rules: rules.map((r) => ({ ...r.meta })),
+  });
   if (values.output) {
     const target = path.resolve(io.cwd ?? process.cwd(), values.output);
     await mkdir(path.dirname(target), { recursive: true });
