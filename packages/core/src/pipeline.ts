@@ -178,7 +178,17 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     }
   }
 
-  const finalized = sortFindings(dedupe(applyConfigSuppressions(findings, config.suppressions)));
+  const finalized = sortFindings(
+    dedupe(
+      applyConfigSuppressions(findings, [
+        ...config.suppressions,
+        ...config.secrets.allowlist.map((fingerprint) => ({
+          fingerprint,
+          justification: "Allowlisted in configuration",
+        })),
+      ]),
+    ),
+  );
   const open = finalized.filter((f) => f.status === "open");
   const suppressed = finalized.filter((f) => f.status === "suppressed");
   const findingsBySeverity = Object.fromEntries(SEVERITIES.map((s) => [s, 0])) as Record<

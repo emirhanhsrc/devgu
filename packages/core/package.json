@@ -9,6 +9,7 @@
     "@devgu/rule-engine": "*",
     "@devgu/shared": "*",
     "picomatch": "^4.0.7",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "@devgu/secret-scanner": "*"
   }
 }
