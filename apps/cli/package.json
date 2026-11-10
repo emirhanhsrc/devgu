@@ -4,6 +4,11 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "bin": { "devgu": "dist/index.js" },
-  "dependencies": { "@devgu/core": "*", "@devgu/shared": "*" }
+  "bin": {
+    "devgu": "dist/index.js"
+  },
+  "dependencies": {
+    "@devgu/core": "*",
+    "@devgu/shared": "*"
+  }
 }

@@ -4,5 +4,10 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "dependencies": { "@devgu/shared": "*" }
+  "dependencies": {
+    "@babel/parser": "^7.29.13",
+    "@babel/traverse": "^7.29.13",
+    "@babel/types": "^7.29.11",
+    "@devgu/shared": "*"
+  }
 }

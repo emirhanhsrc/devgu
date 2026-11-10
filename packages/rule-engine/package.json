@@ -4,5 +4,8 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "dependencies": { "@devgu/shared": "*", "@devgu/parser": "*" }
+  "dependencies": {
+    "@devgu/shared": "*",
+    "@devgu/parser": "*"
+  }
 }

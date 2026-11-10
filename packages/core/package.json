@@ -4,5 +4,10 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "dependencies": { "@devgu/shared": "*", "@devgu/parser": "*", "@devgu/rule-engine": "*" }
+  "dependencies": {
+    "@devgu/parser": "*",
+    "@devgu/rule-engine": "*",
+    "@devgu/shared": "*",
+    "picomatch": "^4.0.7"
+  }
 }
