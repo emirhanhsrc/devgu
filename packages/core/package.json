@@ -10,6 +10,7 @@
     "@devgu/shared": "*",
     "picomatch": "^4.0.7",
     "zod": "^3.25.76",
-    "@devgu/secret-scanner": "*"
+    "@devgu/secret-scanner": "*",
+    "@devgu/taint-analysis": "*"
   }
 }

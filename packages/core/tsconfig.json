@@ -18,6 +18,9 @@
     },
     {
       "path": "../secret-scanner"
+    },
+    {
+      "path": "../taint-analysis"
     }
   ]
 }
