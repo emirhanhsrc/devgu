@@ -1,10 +1,15 @@
 #!/usr/bin/env node
-import { VERSION } from "@devgu/core";
+import { main } from "./main.js";
 
-const [command] = process.argv.slice(2);
-if (command === "version") {
-  console.log(VERSION);
-} else {
-  console.error("Kullanım: devgu version");
-  process.exit(command ? 2 : 0);
-}
+const controller = new AbortController();
+process.once("SIGINT", () => controller.abort());
+
+process.exitCode = await main(
+  process.argv.slice(2),
+  {
+    stdout: (text) => void process.stdout.write(text),
+    stderr: (text) => void process.stderr.write(text),
+    isTTY: process.stdout.isTTY === true,
+  },
+  controller.signal,
+);

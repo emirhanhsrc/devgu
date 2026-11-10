@@ -1,7 +1,23 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
   "include": ["src"],
   "exclude": ["src/**/*.test.ts"],
-  "references": [{ "path": "../../packages/shared" }, { "path": "../../packages/core" }]
+  "references": [
+    {
+      "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/report-engine"
+    },
+    {
+      "path": "../../packages/rule-engine"
+    }
+  ]
 }

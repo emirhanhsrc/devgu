@@ -1,10 +1,23 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/shared" },
-    { "path": "packages/parser" },
-    { "path": "packages/rule-engine" },
-    { "path": "packages/core" },
-    { "path": "apps/cli" }
+    {
+      "path": "packages/shared"
+    },
+    {
+      "path": "packages/parser"
+    },
+    {
+      "path": "packages/rule-engine"
+    },
+    {
+      "path": "packages/report-engine"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "apps/cli"
+    }
   ]
 }

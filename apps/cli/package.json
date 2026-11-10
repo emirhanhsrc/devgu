@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@devgu/core": "*",
-    "@devgu/shared": "*"
+    "@devgu/shared": "*",
+    "@devgu/report-engine": "*",
+    "@devgu/rule-engine": "*"
   }
 }

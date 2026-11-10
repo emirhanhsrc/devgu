@@ -1,0 +1,10 @@
+{
+  "name": "@devgu/report-engine",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@devgu/shared": "*"
+  }
+}
