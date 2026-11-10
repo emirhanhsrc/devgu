@@ -4,3 +4,4 @@ dist-bundle
 coverage
 package-lock.json
 fixtures
+docs/RULES.md

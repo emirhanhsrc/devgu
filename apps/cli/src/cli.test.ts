@@ -27,6 +27,13 @@ describe("cli", () => {
     expect(await run(["version"])).toBe(EXIT.OK);
     expect(out).toMatch(/^\d+\.\d+\.\d+\n$/);
   });
+  it("reports the same version as package.json", async () => {
+    const root = JSON.parse(
+      await readFile(new URL("../../../package.json", import.meta.url), "utf8"),
+    ) as { version: string };
+    await run(["version"]);
+    expect(out.trim()).toBe(root.version);
+  });
   it("shows help and fails without a command", async () => {
     expect(await run([])).toBe(EXIT.USAGE);
     expect(out).toContain("Usage:");
