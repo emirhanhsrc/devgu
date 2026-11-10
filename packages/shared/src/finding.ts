@@ -3,8 +3,8 @@ import { z } from "zod";
 export const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] as const;
 export const CONFIDENCES = ["HIGH", "MEDIUM", "LOW"] as const;
 
-export const SeveritySchema = z.enum(SEVERITIES);
-export const ConfidenceSchema = z.enum(CONFIDENCES);
+export const SeveritySchema = z.enum([...SEVERITIES]);
+export const ConfidenceSchema = z.enum([...CONFIDENCES]);
 
 export type Severity = z.infer<typeof SeveritySchema>;
 export type Confidence = z.infer<typeof ConfidenceSchema>;

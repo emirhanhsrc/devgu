@@ -6,6 +6,6 @@
   "types": "dist/index.d.ts",
   "dependencies": {
     "@devgu/shared": "*",
-    "zod": "^3.25.76"
+    "zod": "^4.6.6"
   }
 }

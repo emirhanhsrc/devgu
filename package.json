@@ -16,7 +16,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run build && npm run lint && npm test"
+    "check": "npm run build && npm run lint && npm test",
+    "bundle": "node scripts/bundle.mjs",
+    "docs:rules": "node scripts/gen-rules-doc.mjs",
+    "bench": "node scripts/benchmark.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -24,11 +27,21 @@
     "@types/jsdom": "^30.0.0",
     "@types/node": "^24.0.0",
     "@types/picomatch": "^4.0.3",
+    "esbuild": "^0.28.2",
     "eslint": "^10.14.0",
     "jsdom": "^26.1.0",
     "prettier": "^3.3.0",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.72.2",
-    "vitest": "^3.0.0"
+    "vitest": "^5.1.0"
+  },
+  "description": "Deterministic, AI-free code security and architecture analysis",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emirhanhsrc/devgu.git"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }

@@ -43,7 +43,7 @@ const VulnResponseSchema = z.object({
   aliases: z.array(z.string().max(100)).optional(),
   withdrawn: z.string().optional(),
   severity: z.array(z.object({ type: z.string(), score: z.string() })).optional(),
-  database_specific: z.object({ severity: z.string().optional() }).passthrough().optional(),
+  database_specific: z.object({ severity: z.string().optional() }).loose().optional(),
   affected: z
     .array(
       z.object({
@@ -51,7 +51,7 @@ const VulnResponseSchema = z.object({
         ranges: z
           .array(
             z.object({
-              events: z.array(z.object({ fixed: z.string().optional() }).passthrough()).optional(),
+              events: z.array(z.object({ fixed: z.string().optional() }).loose()).optional(),
             }),
           )
           .optional(),

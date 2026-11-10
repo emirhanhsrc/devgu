@@ -48,7 +48,7 @@ export const ConfigSchema = z
     secrets: z
       .object({ allowlist: z.array(z.string().min(8).max(64)).max(1000).default([]) })
       .strict()
-      .default({}),
+      .prefault({}),
   })
   .strict();
 
