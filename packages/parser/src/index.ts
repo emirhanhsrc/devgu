@@ -1,6 +1,8 @@
 import { parse, type ParserPlugin } from "@babel/parser";
 import type { File } from "@babel/types";
 
+export * from "./ast.js";
+
 export type Language = "js" | "jsx" | "ts" | "tsx";
 
 /** A file that has been read and (if it is a script) parsed. Treated as read-only by rules. */
