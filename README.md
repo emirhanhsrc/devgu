@@ -51,7 +51,7 @@ Tek dosyalık dağıtım paketi için: `npm run bundle` → `dist-bundle/devgu.m
 ## Kullanım
 
 ```bash
-devgu scan .                                  # tüm motorlarla tara
+devgu scan .                                  # tüm motorlarla tara (hedef bir klasör olmalı)
 devgu scan ./src --security                   # yalnızca güvenlik + taint kuralları
 devgu scan . --secrets                        # yalnızca gizli anahtar taraması
 devgu scan . --dependencies --online          # OSV ile zafiyetli bağımlılıklar
@@ -70,14 +70,19 @@ devgu cache clear
 
 ### Örnek bulgu
 
+`fixtures/vulnerable` üzerindeki gerçek çıktıdan (`devgu scan fixtures/vulnerable --security`):
+
 ```
-src/search.jsx
+src/taint.jsx
   6  HIGH     HIGH   JS-TAINT-001  DOM-based XSS: untrusted data reaches an HTML sink (source: location.search)
       document.getElementById("greeting").innerHTML = html;
-      -> src/search.jsx:3 Source: location.search
-      -> src/search.jsx:4 Result of .get()
-      -> src/search.jsx:5 Interpolated into a template string
-      -> src/search.jsx:6 Sink: innerHTML assignment
+      -> src/taint.jsx:3 Source: location.search
+      -> src/taint.jsx:3 Assigned to 'params'
+      -> src/taint.jsx:4 Result of .get()
+      -> src/taint.jsx:4 Assigned to 'name'
+      -> src/taint.jsx:5 Interpolated into a template string
+      -> src/taint.jsx:5 Assigned to 'html'
+      -> src/taint.jsx:6 Sink: innerHTML assignment
 ```
 
 ### Bastırma
