@@ -1,0 +1,11 @@
+{
+  "name": "@devgu/secret-scanner",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@devgu/shared": "*",
+    "@devgu/rule-engine": "*"
+  }
+}
