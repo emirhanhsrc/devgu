@@ -86,8 +86,7 @@ describe("cli", () => {
   });
   it("writes html and markdown reports", async () => {
     await mkdir(path.join(tmp, "r"));
-    await writeFile(path.join(tmp, "r", "a.js"), "el.innerHTML = location.hash;
-");
+    await writeFile(path.join(tmp, "r", "a.js"), "el.innerHTML = location.hash;\n");
     await run(["scan", "r", "-f", "html", "-o", "out.html", "-q", "--no-cache"]);
     await run(["scan", "r", "-f", "md", "-o", "out.md", "-q", "--no-cache"]);
     const html = await readFile(path.join(tmp, "out.html"), "utf8");

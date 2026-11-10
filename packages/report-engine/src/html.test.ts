@@ -249,7 +249,7 @@ describe("Markdown report", () => {
     expect(md).not.toContain("[click](javascript");
     expect(md).toContain("\\[click\\]");
     expect(md).toContain("````"); // fence is longer than the backtick run in the evidence
-    expect(md).toContain("a\\|b\\.js");
+    expect(md).toContain("a\\|b.js");
   });
   it("lists summary, suppressed findings and a no-findings notice", () => {
     expect(renderMarkdown(result([]))).toContain("No findings. This does not prove");
@@ -268,6 +268,8 @@ describe("Markdown report", () => {
     expect(md).toContain("| HIGH | 1 |");
   });
   it("mdEscape strips control characters and newlines", () => {
-    expect(mdEscape("a\u001b[31m\nb")).not.toMatch(/[\u001b\n]/);
+    const escaped = mdEscape("a\u001b[31m\nb");
+    expect(escaped.includes("\u001b")).toBe(false);
+    expect(escaped.includes("\n")).toBe(false);
   });
 });

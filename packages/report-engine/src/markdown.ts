@@ -4,7 +4,9 @@ import { SEVERITIES, stripControlChars, type Finding, type ScanResult } from "@d
 export function mdEscape(text: string): string {
   return stripControlChars(text)
     .replace(/[\r\n]+/g, " ")
-    .replace(/([\\`*_{}[\]<>()#+\-.!|~&])/g, "\\$1");
+    .replace(/([\\`*_{}[\]<>()#+!|~&])/g, "\\$1")
+    .replace(/^(\d+)\./, "$1\\.")
+    .replace(/^-/, "\\-");
 }
 
 /** Code fence long enough to contain any backtick run inside the content. */
