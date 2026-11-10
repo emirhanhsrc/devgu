@@ -1,0 +1,38 @@
+name: Release
+
+# Runs when a version tag such as v0.1.0 is pushed. Publishing needs an NPM_TOKEN repository secret;
+# without it the workflow still builds, tests and attaches the package to the GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - name: Tag matches package version
+        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - run: npm run bundle
+      - run: npm pack ./dist-bundle --pack-destination .
+      - name: Publish to npm (with provenance)
+        if: env.NODE_AUTH_TOKEN != ''
+        run: npm publish ./dist-bundle --provenance --access public
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: devgu-*.tgz
+          generate_release_notes: true

@@ -1,0 +1,52 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  self-scan:
+    name: DEVGU scans DEVGU
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Scan source code and dependencies (SARIF)
+        id: scan
+        continue-on-error: true
+        run: node apps/cli/dist/index.js scan . --online --format sarif --output devgu.sarif
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('devgu.sarif') != ''
+        with:
+          sarif_file: devgu.sarif
+          category: devgu
+      - name: Fail when the scan reported findings at or above the configured threshold
+        if: steps.scan.outcome == 'failure'
+        run: |
+          echo "DEVGU reported findings; see the Code Scanning alerts." >&2
+          exit 1
+
+  npm-audit:
+    name: npm audit (production dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm audit --omit=dev
