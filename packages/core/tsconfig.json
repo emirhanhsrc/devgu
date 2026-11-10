@@ -21,6 +21,9 @@
     },
     {
       "path": "../taint-analysis"
+    },
+    {
+      "path": "../dependency-engine"
     }
   ]
 }

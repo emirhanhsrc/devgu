@@ -17,6 +17,9 @@
       "path": "packages/taint-analysis"
     },
     {
+      "path": "packages/dependency-engine"
+    },
+    {
       "path": "packages/report-engine"
     },
     {
