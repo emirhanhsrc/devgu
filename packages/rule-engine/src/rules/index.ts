@@ -259,7 +259,7 @@ const msgWildcard = astRule(
   }),
 );
 
-function resolveHandler(path: NodePath, node: t.Node): NodePath | null {
+export function resolveHandler(path: NodePath, node: t.Node): NodePath | null {
   if (t.isFunctionExpression(node) || t.isArrowFunctionExpression(node)) return path;
   if (!t.isIdentifier(node)) return null;
   const binding = path.scope.getBinding(node.name);
@@ -274,7 +274,7 @@ function resolveHandler(path: NodePath, node: t.Node): NodePath | null {
   return null;
 }
 
-function checksOrigin(fn: NodePath): boolean {
+export function checksOrigin(fn: NodePath): boolean {
   let found = false;
   const markIfOrigin = (p: NodePath<t.MemberExpression | t.OptionalMemberExpression>): void => {
     if (propertyName(p.node) === "origin") {

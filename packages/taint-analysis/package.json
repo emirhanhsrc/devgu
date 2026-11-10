@@ -1,0 +1,12 @@
+{
+  "name": "@devgu/taint-analysis",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@devgu/shared": "*",
+    "@devgu/parser": "*",
+    "@devgu/rule-engine": "*"
+  }
+}

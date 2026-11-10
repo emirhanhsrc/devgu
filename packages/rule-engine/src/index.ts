@@ -5,5 +5,7 @@ export {
   HTML_SANITIZERS,
   isHtmlSanitizerCall,
   isUnsafeDynamicHtml,
+  resolveHandler,
+  checksOrigin,
 } from "./rules/index.js";
 export { astRule, lineOf, endLineOf, isLocallyBound } from "./rules/helpers.js";
