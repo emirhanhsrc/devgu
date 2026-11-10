@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createSourceFile } from "@devgu/parser";
 import { runRules } from "../runner.js";
 import { securityRules } from "./index.js";
+import type { Rule } from "../types.js";
 
 function lines(ruleId: string, code: string, file = "a.jsx"): number[] {
   const { findings, diagnostics } = runRules(createSourceFile(file, code), securityRules, {});
@@ -246,5 +247,51 @@ describe("JS-CFG-002 public env secrets", () => {
       {},
     );
     expect(findings.find((f) => f.ruleId === "JS-CFG-002")?.severity).toBe("LOW");
+  });
+});
+
+describe("shared traversal", () => {
+  const code = [
+    "el.innerHTML = a;",
+    "eval(b);",
+    "setTimeout('x()', 1);",
+    "win.postMessage(d, '*');",
+    "window.addEventListener('message', (e) => use(e.data));",
+    "localStorage.setItem('authToken', t);",
+    "const k = process.env.VITE_API_SECRET;",
+    "const C = () => <div dangerouslySetInnerHTML={{ __html: h }} />;",
+  ].join("\n");
+
+  it("gives the same findings as running every rule on its own", () => {
+    const file = createSourceFile("a.jsx", code);
+    const merged = runRules(file, securityRules, {})
+      .findings.map((f) => f.id)
+      .sort();
+    const separate = securityRules
+      .flatMap((rule) => {
+        const standalone: Rule = { meta: rule.meta, check: rule.check };
+        return runRules(file, [standalone], {}).findings;
+      })
+      .map((f) => f.id)
+      .sort();
+    expect(merged.length).toBeGreaterThanOrEqual(8);
+    expect(merged).toEqual(separate);
+  });
+
+  it("isolates a rule whose visitor throws without losing the others", () => {
+    const broken: Rule = {
+      meta: { ...securityRules[0]!.meta, id: "T-BROKEN" },
+      visitor: () => ({
+        CallExpression() {
+          throw new Error("boom");
+        },
+      }),
+      check() {},
+    };
+    const result = runRules(createSourceFile("a.js", code), [broken, ...securityRules], {});
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({ source: "T-BROKEN", message: "Rule failed: boom" }),
+    ]);
+    expect(result.findings.length).toBeGreaterThanOrEqual(8);
   });
 });

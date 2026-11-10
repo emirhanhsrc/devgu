@@ -1,5 +1,5 @@
 import type { Confidence, FlowStep, Severity } from "@devgu/shared";
-import type { SourceFile } from "@devgu/parser";
+import type { SourceFile, Visitor } from "@devgu/parser";
 
 export interface RuleMeta {
   /** Unique, stable identifier, e.g. JS-XSS-001. */
@@ -41,5 +41,11 @@ export interface RuleContext {
 
 export interface Rule {
   meta: RuleMeta;
+  /**
+   * Optional AST visitor. The runner merges the visitors of all enabled rules into a single
+   * traversal, which is much faster than one traversal per rule. Rules that provide it also
+   * implement `check` (a stand-alone traversal) for direct use.
+   */
+  visitor?(context: RuleContext): Visitor;
   check(context: RuleContext): void;
 }

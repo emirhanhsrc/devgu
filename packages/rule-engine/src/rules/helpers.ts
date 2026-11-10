@@ -43,6 +43,7 @@ type MetaInput = Omit<RuleMeta, "engine" | "targets" | "version" | "category"> &
 export function astRule(meta: MetaInput, visitors: (context: RuleContext) => Visitor): Rule {
   return {
     meta: { engine: "security", targets: "ast", version: 1, ...meta },
+    visitor: visitors,
     check(context) {
       if (!context.file.ast) return;
       traverse(context.file.ast, visitors(context));

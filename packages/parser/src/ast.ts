@@ -1,6 +1,7 @@
 import traverseModule, { type TraverseOptions } from "@babel/traverse";
 import * as t from "@babel/types";
 
+import type { Visitor } from "@babel/traverse";
 export type { NodePath, Scope, Binding, Visitor } from "@babel/traverse";
 export { t };
 
@@ -9,6 +10,19 @@ type TraverseFn = (parent: t.Node, opts?: TraverseOptions) => void;
 const traverseExport = traverseModule as unknown as TraverseFn | { default: TraverseFn };
 export const traverse: TraverseFn =
   typeof traverseExport === "function" ? traverseExport : traverseExport.default;
+
+type MergeFn = (visitors: Visitor[]) => Visitor;
+const visitorsApi = traverseModule as unknown as {
+  visitors?: { merge: MergeFn };
+  default?: { visitors: { merge: MergeFn } };
+};
+
+/** Combines several visitors so that one traversal runs all of them. */
+export function mergeVisitors(visitors: Visitor[]): Visitor {
+  const api = visitorsApi.visitors ?? visitorsApi.default?.visitors;
+  if (!api) throw new Error("@babel/traverse visitors API is unavailable");
+  return api.merge(visitors);
+}
 
 /** Name of a non-computed (or string-literal computed) member property, otherwise null. */
 export function propertyName(node: t.Node): string | null {

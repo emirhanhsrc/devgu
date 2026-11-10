@@ -38,6 +38,12 @@ export interface TaintFlow {
 }
 
 const MAX_STEPS = 30;
+/**
+ * Cheap pre-filter: a file that never mentions any known source cannot contain a flow, so the
+ * two AST passes are skipped. It must list every source the engine understands.
+ */
+const SOURCE_HINT =
+  /\b(location|referrer|documentURI|useSearchParams|useParams|useLocation|addEventListener|onmessage)\b|document\.URL|\b(window|self|globalThis)\.name\b|\.value\b/;
 const MAX_EXPRESSION_DEPTH = 150;
 const ALL_KINDS: readonly SinkKind[] = ["html", "url", "code"];
 
@@ -137,7 +143,7 @@ function rootBinding(node: t.Node, scope: Scope): Binding | undefined {
  * flows through function calls, other files, promises or aliased containers are not followed.
  */
 export function analyzeTaint(file: SourceFile): TaintFlow[] {
-  if (!file.ast) return [];
+  if (!file.ast || !SOURCE_HINT.test(file.source)) return [];
   const ast = file.ast;
   const tainted = new Map<Binding, TaintInfo>();
   const messageEvents = new Set<Binding>();
