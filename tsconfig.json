@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/parser" },
+    { "path": "packages/rule-engine" },
+    { "path": "packages/core" },
+    { "path": "apps/cli" }
+  ]
+}
