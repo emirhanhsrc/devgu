@@ -1,82 +1,69 @@
 # DEVGU TODO
 
-Kaynak: README.md. Kapsam bilinçli olarak daraltıldı: önce Milestone 1-3 + lockfile için OSV eşleşmesi + HTML rapor.
-Kural: her aşamada testler geçmeli, sahte bulgu/istatistik yok, bir sonraki aşamaya ancak önceki doğrulanınca geç.
+Durum: Aşama 0–6 tamamlandı (yayın hariç). Kapsam bilinçli olarak daraltıldı; ayrıntı için [ROADMAP.md](ROADMAP.md).
+Kural: her aşamada testler geçer, sahte bulgu/istatistik yok.
 
-## MVP dışı (şimdilik yapma)
+## Aşama 0 — Blueprint ✅
 
-Tauri masaüstü, plugin SDK, performance-engine, complexity-engine, duplicate code, architecture layer kuralları, inter-procedural/cross-file taint, SWC, worker tabanlı analiz, scan history UI.
+- [x] ARCHITECTURE.md (paketler, hat, Finding modeli, taint özeti, riskler)
+- [x] Tehdit modeli ([docs/THREAT_MODEL.md](docs/THREAT_MODEL.md))
+- [x] Kural kataloğu ([docs/RULES.md](docs/RULES.md), koddan üretilir)
 
----
+## Aşama 1 — Çekirdek ✅
 
-## Aşama 0 — Blueprint
+- [x] Monorepo, TypeScript, Vitest, ESLint, Prettier
+- [x] Finding şeması (Zod), parmak izi, maskeleme
+- [x] Güvenli keşif: sembolik bağlantı yok, boyut/dosya/satır sınırları, dışlamalar
+- [x] Babel ile JS/TS/JSX/TSX, hata toleransı
+- [x] İçerik özetli önbellek (kullanıcı önbellek dizininde)
+- [x] CLI: `scan`, `rules`, `config init`, `cache clear`, `version`; çıkış kodları
+- [x] Zafiyetli ve güvenli fixture projeler + golden testler
 
-- [ ] ARCHITECTURE.md: paket sorumlulukları, analiz pipeline'ı, Finding şeması, taint algoritması önerisi, riskler
-- [ ] İlk kural kataloğu (ID, kategori, severity, confidence) — yalnızca MVP kuralları
-- [ ] Bilinen sınırlamalar bölümü (statik analiz neyi kanıtlayamaz)
+## Aşama 2 — Güvenlik temeli ✅
 
-## Aşama 1 — Çekirdek (Milestone 1)
+- [x] Kural motoru (etkinleştirme, şiddet geçersiz kılma, tek geçişli AST ziyaretçileri)
+- [x] 11 AST kuralı (XSS, kod yürütme, URL, postMessage, depolama, yapılandırma)
+- [x] Secret scanner (10 kural, entropi, maskeleme, allowlist)
+- [x] Gerekçeli bastırma (satır içi + yapılandırma)
+- [x] JSON ve SARIF 2.1.0
 
-- [ ] Monorepo (npm workspaces), TypeScript, Vitest, ESLint/Prettier
-- [ ] Yalnızca gerçekten kullanılan paketler: `core`, `parser`, `rule-engine`, `shared`, `cli` (boş paket oluşturma)
-- [ ] `Finding` şeması (id, ruleId, engine, severity, confidence, category, dosya/satır, evidence, remediation, references, fingerprint, status) + Zod doğrulama
-- [ ] Repo keşfi: dosya sınıflandırma, filtreleme (node_modules, dist vb.), dosya boyutu limiti
-- [ ] Güvenlik: path traversal, symlink kontrolü, repo kodunu/script'lerini asla çalıştırma
-- [ ] Babel Parser ile JS/TS/JSX/TSX, ESM + CommonJS; parse hatasında çökmeden devam
-- [ ] İçerik hash'li cache (artımlı tarama temeli)
-- [ ] CLI iskeleti: `devgu scan <path>`, `devgu version`, anlamlı çıkış kodları, ilerleme çıktısı
-- [ ] Zafiyetli ve güvenli fixture projeler (`fixtures/`)
+## Aşama 3 — Taint analizi ✅
 
-## Aşama 2 — Güvenlik temeli (Milestone 2)
+- [x] Kaynak / sink / temizleyici modeli, veri akışı yolu
+- [x] Güven seviyesi (URL kaynağı HIGH, postMessage MEDIUM, form alanı LOW)
+- [x] "Tehlikeli görünen ama güvenli" fixture'lar
+- [x] Sınırlamalar dokümante edildi
+- [ ] Fonksiyonlar arası (inter-procedural) ve dosyalar arası akış → [ROADMAP.md](ROADMAP.md)
 
-- [ ] Kural motoru: kural tanımı (id, ad, açıklama, severity, confidence, mantık, remediation, referans), enable/disable, severity override, hariç tutma
-- [ ] `devgu rules list`, `devgu rules explain <id>`
-- [ ] Kurallar (her biri: pozitif, negatif, edge ve yanlış-pozitif testi):
-  - [ ] `innerHTML` / `outerHTML` / `insertAdjacentHTML` / `document.write` / `dangerouslySetInnerHTML`
-  - [ ] `eval`, `new Function`, string tabanlı `setTimeout/setInterval`
-  - [ ] `javascript:` URL ve güvensiz dinamik `href`
-  - [ ] `postMessage`: wildcard origin, alıcıda origin doğrulaması yok
-  - [ ] localStorage/sessionStorage'a token yazımı (kesin zafiyet olarak işaretleme, düşük confidence)
-- [ ] Secret scanner: pattern + entropy, bağlam filtresi, allowlist, fingerprint; çıktıda secret maskeleme, logda asla tam secret yok
-- [ ] Bulgu normalizasyonu + tekrar eleme
-- [ ] Gerekçeli suppression (`devgu-ignore` benzeri)
-- [ ] Raporlama: JSON + SARIF 2.1.0 (GitHub Code Scanning ile doğrula)
-- [ ] `devgu scan --format sarif|json`
+## Aşama 4 — Bağımlılık güvenliği ✅ (npm)
 
-## Aşama 3 — Taint analizi (Milestone 3)
+- [x] `package-lock.json` v1/v2/v3
+- [x] OSV + çevrimdışı önbellek, CVSS v3, varsayılan çevrimdışı (`--online` ile)
+- [x] Zafiyet bulguları ile güncel olmayan paket uyarıları ayrı (yalnızca zafiyet)
+- [x] Gerçek OSV yanıtıyla uçtan uca doğrulama
+- [ ] `yarn.lock`, `pnpm-lock.yaml`, lisans bilgisi → [ROADMAP.md](ROADMAP.md)
 
-- [ ] Source / sink / sanitizer tanımları (yapılandırılabilir): `location.search/hash`, `URLSearchParams.get`, `window.name`, `postMessage` verisi → DOM sink'leri
-- [ ] Scope analizi + sembol çözümleme
-- [ ] Intra-procedural taint: atama, string interpolation/concat, template literal propagasyonu
-- [ ] Bulguda tam yol: kaynak dosya/satır, sink dosya/satır, dönüşümler, sanitizer bilgisi
-- [ ] Confidence sınıflandırması (kanıtlanmış akış = HIGH, şüpheli API = LOW)
-- [ ] "Tehlikeli görünen ama güvenli" fixture'ları: analiz bunları raporlamamalı
-- [ ] Dokümante edilmiş sınırlamalar
+## Aşama 5 — Rapor ✅
 
-## Aşama 4 — Bağımlılık güvenliği (daraltılmış Milestone 4)
+- [x] Tek dosyalık HTML rapor (CSP, `textContent`, jsdom ile XSS testi)
+- [x] Markdown rapor (kaçışlı, güvenli kod çiti)
+- [x] Rapor metaverisi: sürüm, kural seti, tarih, motorlar, sayılar, bastırılanlar
+- [ ] Import grafı ve döngüsel bağımlılık (isteğe bağlı) → [ROADMAP.md](ROADMAP.md)
 
-- [ ] `package-lock.json` parser (doğrudan + geçişli bağımlılıklar)
-- [ ] OSV eşleşmesi + offline cache (ağ erişimi açıkça kontrollü, varsayılan kapalı/opt-in)
-- [ ] Zafiyet bulgularını "outdated" uyarılarından ayır
-- [ ] Bağımlılıkları asla otomatik güncelleme
-- [ ] (Sonra) yarn.lock / pnpm-lock.yaml, lisans bilgisi
+## Aşama 6 — Yayın hazırlığı ✅ (npm yayını hariç)
 
-## Aşama 5 — Rapor ve arayüz
-
-- [ ] Tek dosyalık HTML rapor: bulgu listesi, severity/confidence/kategori filtreleri, kod parçacığı, taint yolu, remediation
-- [ ] Rapor meta verisi: scanner sürümü, kural seti sürümü, tarih, aktif motorlar, sayılar, bastırılan bulgular
-- [ ] (İsteğe bağlı) Basit import grafı + döngüsel bağımlılık tespiti (Tarjan SCC)
-
-## Aşama 6 — Yayın
-
-- [ ] Zafiyetli demo repo üzerinde uçtan uca çalışma + beklenen bulgu assertion'ları
-- [ ] Ölçüm: taranan dosya, parse süresi, kural süresi, cache hit oranı (desteklenmeyen performans iddiası yok)
-- [ ] CI: lint, test, build, kendi kodunda güvenlik taraması; GitHub Action örneği ile SARIF yükleme
-- [ ] README, LICENSE (MIT), CONTRIBUTING, SECURITY, CHANGELOG, ROADMAP
-- [ ] Kısa demo (GIF/video) ve ilk sürüm (npm yayını)
+- [x] CI: Node 20/22/24 × Linux/Windows, lint, biçim, test, paket doğrulama
+- [x] Kendi kendini tarama + SARIF yükleme + `npm audit`
+- [x] Sürüm iş akışı (etiketle tetiklenir, NPM_TOKEN yoksa yayınlamaz)
+- [x] Dependabot, issue/PR şablonları
+- [x] LICENSE, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, CHANGELOG, ROADMAP
+- [x] Gerçek ölçümler ([docs/BENCHMARKS.md](docs/BENCHMARKS.md))
+- [x] Kendi bağımlılık ağacında OSV ile bulunan advisory'ler giderildi (zod 4, vitest 5, minimatch 11)
+- [ ] `v0.1.0` etiketi ve npm yayını (geri alınamaz; sahibinin kararı)
+- [ ] Demo GIF/video
 
 ## Sürekli
 
-- [ ] Her kural fixture + testle birlikte gelir; testsiz kural eklenmez
-- [ ] Tamamlanmamış özelliği experimental/unavailable olarak işaretle, sahte buton/veri yok
-- [ ] Güvenlik: ReDoS'a dayanıklı regex, parser kaynak limitleri, güvenli geçici dosya
+- [x] Her kural fixture + testle gelir
+- [x] Tamamlanmamış özellik README'de "Planlı" / "Kapsam dışı" olarak işaretli
+- [x] ReDoS'a dayanıklı regex'ler, parser kaynak limitleri, güvenli geçici dosya
