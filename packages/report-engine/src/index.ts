@@ -6,7 +6,13 @@ import { renderText } from "./text.js";
 
 export { renderText } from "./text.js";
 export { renderSarif, type RuleDescriptor } from "./sarif.js";
-export { renderHtml, embedJson, EDITOR_SCHEMES, type EditorLinks, type EditorScheme } from "./html.js";
+export {
+  renderHtml,
+  embedJson,
+  EDITOR_SCHEMES,
+  type EditorLinks,
+  type EditorScheme,
+} from "./html.js";
 export { renderMarkdown, mdEscape } from "./markdown.js";
 
 export const REPORT_FORMATS = ["text", "json", "sarif", "html", "md"] as const;
