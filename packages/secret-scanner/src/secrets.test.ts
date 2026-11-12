@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { loc } from "@devgu/shared";
 import { createSourceFile } from "@devgu/parser";
 import { runRules } from "@devgu/rule-engine";
 import { SECRET_PATTERNS, redactSecretsInText, secretRules, shannonEntropy } from "./index.js";
@@ -103,7 +104,8 @@ describe("robustness", () => {
   it("has unique ids and documented limitations", () => {
     const all = SECRET_PATTERNS.map((p) => p.id);
     expect(new Set(all).size).toBe(all.length);
-    expect(SECRET_PATTERNS.every((p) => p.limitations.length > 20)).toBe(true);
+    expect(SECRET_PATTERNS.every((p) => loc(p.limitations, "en").length > 20)).toBe(true);
+    expect(SECRET_PATTERNS.every((p) => loc(p.limitations, "tr").length > 20)).toBe(true);
   });
   it("computes entropy", () => {
     expect(shannonEntropy("aaaa")).toBe(0);

@@ -1,4 +1,5 @@
 import type { Finding, Severity } from "./finding.js";
+import type { Lang } from "./i18n.js";
 
 export type SkipReason =
   "symlink" | "too-large" | "file-limit" | "binary" | "minified-or-generated" | "unreadable";
@@ -32,6 +33,8 @@ export interface ScanMeta {
   tool: "devgu";
   toolVersion: string;
   rulesetVersion: string;
+  /** Language the human-readable finding and report text is rendered in. */
+  lang: Lang;
   scannedAt: string;
   /** Base name of the scanned directory. The absolute path is intentionally not recorded. */
   rootName: string;

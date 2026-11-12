@@ -4,6 +4,13 @@ Biçim [Keep a Changelog](https://keepachangelog.com/) ilkelerini, sürümleme [
 
 ## [Unreleased]
 
+### Added
+
+- Çok dilli çıktı (Türkçe / İngilizce): `--lang tr|en` bayrağı ve `devgu.config.json` içindeki `"lang"` alanı.
+  Bulgu başlıkları/açıklamaları/çözümleri/sınırlamaları, taint veri akışı adımları, bağımlılık bulguları,
+  metin / Markdown / HTML rapor etiketleri ve CLI iletileri yerelleştirildi. Dil tarama anında sabitlenir ve
+  `meta.lang` alanıyla çıktıya yazılır. Kural kataloğu her iki dilde üretilir (`docs/RULES.md`, `docs/RULES.tr.md`).
+
 ## [0.1.0]
 
 İlk sürüm adayı.

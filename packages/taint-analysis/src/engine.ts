@@ -15,10 +15,22 @@ import { HTML_SANITIZERS, checksOrigin, isLocallyBound, resolveHandler } from "@
 export type SinkKind = "html" | "url" | "code";
 export type SourceReliability = "HIGH" | "MEDIUM" | "LOW";
 
-export interface FlowStep {
-  line: number;
-  description: string;
-}
+/**
+ * A data-flow step as a language-neutral descriptor. The engine stays locale-agnostic; the human
+ * text is produced once, in the chosen language, when a finding is built (see the taint rules).
+ */
+export type StepDescriptor =
+  | { kind: "source"; label: string }
+  | { kind: "sink"; label: string }
+  | { kind: "interpolated" }
+  | { kind: "concatenated" }
+  | { kind: "passedThrough"; name: string }
+  | { kind: "sanitized"; name: string; neutralizes: string }
+  | { kind: "resultOf"; method: string }
+  | { kind: "assignedTo"; name: string }
+  | { kind: "storedIn"; name: string };
+
+export type FlowStep = { line: number } & StepDescriptor;
 
 /** What is known about one tainted value. Instances are immutable. */
 export interface TaintInfo {
@@ -103,9 +115,9 @@ const SANITIZERS = new Map<string, readonly SinkKind[]>([
   ["Boolean", ALL_KINDS],
 ]);
 
-function withStep(info: TaintInfo, line: number, description: string): TaintInfo {
+function withStep(info: TaintInfo, line: number, step: StepDescriptor): TaintInfo {
   if (info.steps.length >= MAX_STEPS) return info;
-  return { ...info, steps: [...info.steps, { line, description }] };
+  return { ...info, steps: [...info.steps, { line, ...step }] };
 }
 
 function lineOf(node: t.Node): number {
@@ -125,7 +137,7 @@ function source(label: string, reliability: SourceReliability, node: t.Node): Ta
   return {
     source: label,
     reliability,
-    steps: [{ line: lineOf(node), description: `Source: ${label}` }],
+    steps: [{ line: lineOf(node), kind: "source", label }],
     sanitizedFor: new Set(),
   };
 }
@@ -222,12 +234,12 @@ export function analyzeTaint(file: SourceFile): TaintFlow[] {
     if (t.isTemplateLiteral(node)) {
       let result: TaintInfo | null = null;
       for (const expression of node.expressions) result = merge(result, taintOf(expression, scope));
-      return result ? withStep(result, lineOf(node), "Interpolated into a template string") : null;
+      return result ? withStep(result, lineOf(node), { kind: "interpolated" }) : null;
     }
     if (t.isBinaryExpression(node)) {
       if (node.operator !== "+") return null;
       const result = merge(taintOf(node.left, scope), taintOf(node.right, scope));
-      return result ? withStep(result, lineOf(node), "Concatenated into a string") : null;
+      return result ? withStep(result, lineOf(node), { kind: "concatenated" }) : null;
     }
     if (t.isConditionalExpression(node)) {
       return merge(taintOf(node.consequent, scope), taintOf(node.alternate, scope));
@@ -300,20 +312,20 @@ export function analyzeTaint(file: SourceFile): TaintFlow[] {
           return withStep(
             { ...input, sanitizedFor: new Set([...input.sanitizedFor, ...neutralizes]) },
             lineOf(node),
-            `Passed through ${name}() (neutralizes ${neutralizes.join("/")})`,
+            { kind: "sanitized", name, neutralizes: neutralizes.join("/") },
           );
         }
         if (SOURCE_CALLS.has(name)) return source(`${name}()`, "HIGH", node);
         if (PROPAGATING_FUNCTIONS.has(name)) {
           const input = taintOf(node.arguments[0], scope);
-          return input ? withStep(input, lineOf(node), `Passed through ${name}()`) : null;
+          return input ? withStep(input, lineOf(node), { kind: "passedThrough", name }) : null;
         }
       }
       if (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) {
         const method = propertyName(callee);
         if (method && !NON_PROPAGATING_METHODS.has(method)) {
           const receiver = taintOf(callee.object, scope);
-          return receiver ? withStep(receiver, lineOf(node), `Result of .${method}()`) : null;
+          return receiver ? withStep(receiver, lineOf(node), { kind: "resultOf", method }) : null;
         }
       }
       return null;
@@ -335,7 +347,7 @@ export function analyzeTaint(file: SourceFile): TaintFlow[] {
   const bindIdentifiers = (pattern: t.Node, info: TaintInfo, scope: Scope, line: number): void => {
     for (const [name] of Object.entries(t.getBindingIdentifiers(pattern))) {
       const binding = scope.getBinding(name);
-      if (binding) tainted.set(binding, withStep(info, line, `Assigned to '${name}'`));
+      if (binding) tainted.set(binding, withStep(info, line, { kind: "assignedTo", name }));
     }
   };
 
@@ -382,7 +394,10 @@ export function analyzeTaint(file: SourceFile): TaintFlow[] {
         const binding = path.scope.getBinding(left.name);
         if (binding) {
           if (info) {
-            const next = withStep(info, lineOf(path.node), `Assigned to '${left.name}'`);
+            const next = withStep(info, lineOf(path.node), {
+              kind: "assignedTo",
+              name: left.name,
+            });
             tainted.set(
               binding,
               operator === "=" && isUnconditional(path.parentPath)
@@ -406,7 +421,10 @@ export function analyzeTaint(file: SourceFile): TaintFlow[] {
             binding,
             merge(
               tainted.get(binding) ?? null,
-              withStep(info, lineOf(path.node), `Stored in '${dottedName(left) ?? "object"}'`),
+              withStep(info, lineOf(path.node), {
+                kind: "storedIn",
+                name: dottedName(left) ?? "object",
+              }),
             ) as TaintInfo,
           );
         }

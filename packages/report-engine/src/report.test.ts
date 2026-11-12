@@ -31,6 +31,7 @@ function result(findings: Finding[] = [finding()], suppressed: Finding[] = []): 
       tool: "devgu",
       toolVersion: "0.1.0",
       rulesetVersion: "abc",
+      lang: "en",
       scannedAt: "2026-01-01T00:00:00.000Z",
       rootName: "demo",
       engines: ["security"],

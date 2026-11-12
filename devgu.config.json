@@ -1,4 +1,5 @@
 {
   "exclude": ["fixtures/**", "**/*.test.ts", "scripts/benchmark.mjs"],
-  "failOn": "MEDIUM"
+  "failOn": "MEDIUM",
+  "lang": "tr"
 }

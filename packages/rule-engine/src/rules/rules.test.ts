@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { loc } from "@devgu/shared";
 import { createSourceFile } from "@devgu/parser";
 import { runRules } from "../runner.js";
 import { securityRules } from "./index.js";
@@ -15,8 +16,9 @@ describe("rule catalogue", () => {
     const ids = securityRules.map((r) => r.meta.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const rule of securityRules) {
-      expect(rule.meta.limitations.length).toBeGreaterThan(20);
-      expect(rule.meta.remediation.length).toBeGreaterThan(10);
+      expect(loc(rule.meta.limitations, "en").length).toBeGreaterThan(20);
+      expect(loc(rule.meta.remediation, "en").length).toBeGreaterThan(10);
+      expect(loc(rule.meta.limitations, "tr").length).toBeGreaterThan(20);
       expect(rule.meta.references.length).toBeGreaterThan(0);
     }
   });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { loc } from "@devgu/shared";
 import { createSourceFile } from "@devgu/parser";
 import { runRules } from "@devgu/rule-engine";
 import { taintRules } from "./index.js";
@@ -203,6 +204,11 @@ describe("robustness", () => {
       "JS-TAINT-002",
       "JS-TAINT-003",
     ]);
-    expect(taintRules.every((r) => r.meta.limitations.includes("Intra-procedural"))).toBe(true);
+    expect(
+      taintRules.every((r) => loc(r.meta.limitations, "en").includes("Intra-procedural")),
+    ).toBe(true);
+    expect(taintRules.every((r) => loc(r.meta.limitations, "tr").includes("Prosedür içi"))).toBe(
+      true,
+    );
   });
 });

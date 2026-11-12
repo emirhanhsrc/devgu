@@ -15,11 +15,12 @@ export function defaultAnalyzers(options: { online: boolean }): ProjectAnalyzer[
   return [
     {
       name: "dependencies",
-      run: ({ root, signal }) =>
+      run: ({ root, signal, lang }) =>
         auditDependencies({
           root,
           online: options.online,
           cacheDir: defaultCacheDir(),
+          lang,
           ...(signal ? { signal } : {}),
         }),
     },
