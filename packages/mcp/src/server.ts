@@ -185,11 +185,15 @@ export async function runMcpServer(options: McpOptions): Promise<void> {
     });
 
   async function resolveDir(input: string): Promise<string> {
-    const resolved = await realpath(path.resolve(roots[0] as string, input));
-    if (!within(resolved))
-      throw new Error(
-        `Path is outside the allowed roots (${roots.join(", ")}). Set DEVGU_MCP_ROOTS to allow more.`,
-      );
+    const outside = new Error(
+      `Path is outside the allowed roots (${roots.join(", ")}). Set DEVGU_MCP_ROOTS to allow more.`,
+    );
+    // Check the lexical path first (so nothing is probed outside the roots), then the real path
+    // to catch symlinks that point out of them.
+    const lexical = path.resolve(roots[0] as string, input);
+    if (!within(lexical)) throw outside;
+    const resolved = await realpath(lexical);
+    if (!within(resolved)) throw outside;
     return resolved;
   }
 
