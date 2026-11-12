@@ -15,6 +15,8 @@ import {
   ruleCatalog,
   scan,
 } from "@devgu/core";
+import { runMcpServer } from "@devgu/mcp";
+import { WEB_RULES, scanUrl } from "@devgu/web-scan";
 import {
   EDITOR_SCHEMES,
   REPORT_FORMATS,
@@ -33,6 +35,8 @@ import {
   messages,
   stripControlChars,
   type Lang,
+  type ScanResult,
+  type Severity,
 } from "@devgu/shared";
 
 export interface Io {
@@ -47,7 +51,8 @@ export const EXIT = { OK: 0, FINDINGS: 1, USAGE: 2, ERROR: 3, CANCELLED: 130 } a
 const HELP_EN = `devgu - deterministic code security and architecture analysis
 
 Usage:
-  devgu scan [path] [options]    Scan a directory (default: current directory)
+  devgu scan [path|url] [options] Scan a directory (default: current) or a deployed site (needs --authorized)
+  devgu mcp                      Start the MCP server (stdio) for AI assistants
   devgu rules list               List all rules
   devgu rules explain <id>       Explain a rule
   devgu config init              Create ${CONFIG_FILE_NAME}
@@ -59,6 +64,7 @@ Scan options:
   -o, --output <file>    Write the report to a file instead of stdout
       --editor <name>    HTML: make file:line clickable in vscode | vscode-insiders | cursor | windsurf
                          (embeds the local project path; default with --open: vscode)
+      --authorized       Confirm you own the site or are authorised to test it (required for URL scans)
       --open             Write an HTML report and open it in the default browser
       --lang <tr|en>     Output language for findings and reports (default: en)
       --security         Run only security (pattern + taint) rules
@@ -76,7 +82,8 @@ Exit codes: 0 ok, 1 findings at/above --fail-on, 2 usage error, 3 runtime error,
 const HELP_TR = `devgu - deterministik kod güvenliği ve mimari analizi
 
 Kullanım:
-  devgu scan [yol] [seçenekler]  Bir dizini tara (varsayılan: geçerli dizin)
+  devgu scan [yol|url] [seçenekler] Bir dizini (varsayılan: geçerli) veya yayındaki bir siteyi tara (--authorized gerekir)
+  devgu mcp                      Yapay zekâ asistanları için MCP sunucusunu başlat (stdio)
   devgu rules list               Tüm kuralları listele
   devgu rules explain <id>       Bir kuralı açıkla
   devgu config init              ${CONFIG_FILE_NAME} oluştur
@@ -88,6 +95,7 @@ Tarama seçenekleri:
   -o, --output <dosya>   Raporu stdout yerine bir dosyaya yaz
       --editor <ad>      HTML: dosya:satır tıklanınca editörde aç (vscode | vscode-insiders | cursor | windsurf)
                          (yerel proje yolunu rapora gömer; --open ile varsayılan: vscode)
+      --authorized       Siteye sahip olduğunuzu ya da test yetkiniz olduğunu onaylar (URL taramasında zorunlu)
       --open             HTML raporu yaz ve varsayılan tarayıcıda aç
       --lang <tr|en>     Bulgu ve raporların dili (varsayılan: en)
       --security         Yalnızca güvenlik (desen + taint) kurallarını çalıştır
@@ -124,6 +132,7 @@ export async function main(argv: string[], io: Io, signal?: AbortSignal): Promis
         "no-cache": { type: "boolean" },
         lang: { type: "string" },
         open: { type: "boolean" },
+        authorized: { type: "boolean" },
         editor: { type: "string" },
         quiet: { type: "boolean", short: "q" },
         help: { type: "boolean", short: "h" },
@@ -164,6 +173,16 @@ export async function main(argv: string[], io: Io, signal?: AbortSignal): Promis
       case "config":
         if (rest[0] !== "init") return usage(io, "Usage: devgu config init");
         return await configInit(io, cliLang);
+      case "mcp":
+        await runMcpServer({
+          input: process.stdin,
+          output: process.stdout,
+          roots: process.env.DEVGU_MCP_ROOTS
+            ? process.env.DEVGU_MCP_ROOTS.split(path.delimiter).filter(Boolean)
+            : [io.cwd ?? process.cwd()],
+          log: (text) => io.stderr(text),
+        });
+        return EXIT.OK;
       case "scan":
         return await runScan(rest, values, io, cliLang, signal);
       default:
@@ -188,7 +207,7 @@ function usage(io: Io, message: string): number {
 
 function runRulesCommand(args: string[], io: Io, lang: Lang): number {
   const tr = lang === "tr";
-  const rules = ruleCatalog();
+  const rules = [...ruleCatalog(), ...WEB_RULES];
   if (args[0] === "list") {
     const rows = rules.map(
       (m) =>
@@ -263,13 +282,14 @@ type ScanValues = {
   "no-cache"?: boolean;
   lang?: string;
   open?: boolean;
+  authorized?: boolean;
   editor?: string;
   quiet?: boolean;
 };
 
 /** Rule metadata resolved to plain strings in `lang`, for SARIF rule descriptors. */
 function localizedCatalog(lang: Lang): RuleDescriptor[] {
-  return ruleCatalog().map((m) => ({
+  return [...ruleCatalog(), ...WEB_RULES].map((m) => ({
     id: m.id,
     name: loc(m.name, lang),
     description: loc(m.description, lang),
@@ -291,6 +311,39 @@ function openInBrowser(file: string): void {
   const child = spawn(cmd, args, { stdio: "ignore", detached: true });
   child.on("error", () => undefined);
   child.unref();
+}
+
+async function emitReport(
+  result: ScanResult,
+  ctx: {
+    format: ReportFormat;
+    lang: Lang;
+    values: ScanValues;
+    io: Io;
+    failOn: Severity;
+    editor?: { scheme: EditorScheme; root: string };
+  },
+): Promise<number> {
+  const { format, lang, values, io, failOn } = ctx;
+  const report = renderReport(format, result, {
+    color: io.isTTY === true && !values.output && !values.open,
+    rules: localizedCatalog(lang),
+    ...(ctx.editor ? { editor: ctx.editor } : {}),
+  });
+  const outputPath =
+    values.output ??
+    (values.open ? path.join(os.tmpdir(), `devgu-report-${Date.now()}.html`) : undefined);
+  if (outputPath) {
+    const target = path.resolve(io.cwd ?? process.cwd(), outputPath);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, report);
+    if (!values.quiet)
+      io.stderr(`${lang === "tr" ? "Rapor yazıldı" : "Report written to"} ${target}\n`);
+    if (values.open) openInBrowser(target);
+  } else {
+    io.stdout(report);
+  }
+  return result.findings.some((f) => meetsThreshold(f.severity, failOn)) ? EXIT.FINDINGS : EXIT.OK;
 }
 
 async function runScan(
@@ -315,7 +368,16 @@ async function runScan(
   if (editorName !== undefined && !(EDITOR_SCHEMES as readonly string[]).includes(editorName))
     return usage(io, `Unknown editor: ${stripControlChars(editorName)}`);
 
-  const root = path.resolve(io.cwd ?? process.cwd(), args[0] ?? ".");
+  const isUrl = /^https?:\/\//i.test(args[0] ?? "");
+  if (isUrl && !values.authorized)
+    return usage(
+      io,
+      cliLang === "tr"
+        ? "URL taraması için --authorized gerekir: yalnızca sahibi olduğunuz ya da test yetkiniz olan sitelerde kullanın."
+        : "URL scans need --authorized: only scan sites you own or are authorised to test.",
+    );
+
+  const root = path.resolve(io.cwd ?? process.cwd(), isUrl ? "." : (args[0] ?? "."));
   const config = await loadConfig({
     root,
     ...(values.config ? { configPath: path.resolve(io.cwd ?? process.cwd(), values.config) } : {}),
@@ -323,6 +385,18 @@ async function runScan(
   const failOn = failOnParsed?.success ? failOnParsed.data : config.failOn;
   // Flag wins; otherwise the config's language; otherwise the default.
   const lang: Lang = values.lang !== undefined ? cliLang : (config.lang ?? DEFAULT_LANG);
+
+  if (isUrl) {
+    const showUrlProgress = !values.quiet && io.isTTY === true;
+    if (showUrlProgress) io.stderr(`${messages(lang).cli.scanning} ${args[0]}\r`);
+    const web = await scanUrl({
+      url: args[0] as string,
+      lang,
+      ...(signal ? { signal } : {}),
+    });
+    if (showUrlProgress) io.stderr("\r\u001b[K");
+    return await emitReport(web, { format, lang, values, io, failOn });
+  }
 
   const selected = [
     values.security && "security",
@@ -356,23 +430,12 @@ async function runScan(
   });
   if (showProgress) io.stderr("\r\u001b[K");
 
-  const report = renderReport(format, result, {
-    color: io.isTTY === true && !values.output && !values.open,
-    rules: localizedCatalog(lang),
+  return await emitReport(result, {
+    format,
+    lang,
+    values,
+    io,
+    failOn,
     ...(editorName ? { editor: { scheme: editorName as EditorScheme, root } } : {}),
   });
-  const outputPath =
-    values.output ??
-    (values.open ? path.join(os.tmpdir(), `devgu-report-${Date.now()}.html`) : undefined);
-  if (outputPath) {
-    const target = path.resolve(io.cwd ?? process.cwd(), outputPath);
-    await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, report);
-    if (!values.quiet)
-      io.stderr(`${lang === "tr" ? "Rapor yazıldı" : "Report written to"} ${target}\n`);
-    if (values.open) openInBrowser(target);
-  } else {
-    io.stdout(report);
-  }
-  return result.findings.some((f) => meetsThreshold(f.severity, failOn)) ? EXIT.FINDINGS : EXIT.OK;
 }

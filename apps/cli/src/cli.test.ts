@@ -23,6 +23,14 @@ const run = (args: string[]): Promise<number> =>
   main(args, { stdout: (t) => void (out += t), stderr: (t) => void (err += t), cwd: tmp });
 
 describe("cli", () => {
+  it("refuses to scan a URL without --authorized", async () => {
+    expect(await run(["scan", "https://example.com"])).toBe(EXIT.USAGE);
+    expect(err).toContain("--authorized");
+  });
+  it("lists web rules", async () => {
+    expect(await run(["rules", "list"])).toBe(EXIT.OK);
+    expect(out).toContain("WEB-MAP-001");
+  });
   it("prints the version", async () => {
     expect(await run(["version"])).toBe(EXIT.OK);
     expect(out).toMatch(/^\d+\.\d+\.\d+\n$/);

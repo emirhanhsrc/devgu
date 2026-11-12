@@ -26,6 +26,12 @@
       "path": "packages/core"
     },
     {
+      "path": "packages/mcp"
+    },
+    {
+      "path": "packages/web-scan"
+    },
+    {
       "path": "apps/cli"
     }
   ]

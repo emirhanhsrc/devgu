@@ -18,6 +18,12 @@
     },
     {
       "path": "../../packages/rule-engine"
+    },
+    {
+      "path": "../../packages/mcp"
+    },
+    {
+      "path": "../../packages/web-scan"
     }
   ]
 }

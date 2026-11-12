@@ -41,6 +41,8 @@ const manifest = {
     "secrets",
     "sarif",
     "react",
+    "mcp",
+    "model-context-protocol",
   ],
 };
 await writeFile(

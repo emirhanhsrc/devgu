@@ -1,0 +1,14 @@
+{
+  "name": "@devgu/mcp",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@devgu/core": "*",
+    "@devgu/report-engine": "*",
+    "@devgu/rule-engine": "*",
+    "@devgu/shared": "*",
+    "@devgu/web-scan": "*"
+  }
+}

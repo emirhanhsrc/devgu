@@ -29,6 +29,8 @@ DEVGU; yapay zekâ kullanmayan, yerel çalışan ve deterministik bir kod güven
 | Bağımlılık güvenliği: `package-lock.json` + OSV, CVSS v3, çevrimdışı önbellek                        | Hazır                             |
 | Raporlar: metin, JSON, **SARIF 2.1.0**, Markdown, CSP korumalı tek dosyalık **HTML**                 | Hazır                             |
 | Çok dilli çıktı: **Türkçe / İngilizce** (`--lang tr\|en`, varsayılan `en`; `devgu.config.json` ile)  | Hazır                             |
+| Yayındaki site taraması: `devgu scan <url>` (başlıklar, `.map` kurtarma, `.env`/`.git` denetimi)     | Hazır                             |
+| MCP sunucusu: `devgu mcp` (yapay zekâ asistanlarında yerel ve ücretsiz kullanım)                     | Hazır                             |
 | Gerekçeli bastırma, artımlı önbellek, anlamlı çıkış kodları                                          | Hazır                             |
 | `yarn.lock` / `pnpm-lock.yaml`, fonksiyonlar arası taint, import grafı ve döngüsel bağımlılık        | Planlı ([ROADMAP.md](ROADMAP.md)) |
 | Masaüstü arayüzü, eklenti SDK'sı, performans/karmaşıklık motorları                                   | Kapsam dışı                       |
@@ -60,6 +62,9 @@ devgu scan . -f sarif -o devgu.sarif          # GitHub Code Scanning için
 devgu scan . -f html -o rapor.html            # tek dosyalık HTML rapor
 devgu scan . --lang tr                         # Türkçe bulgu ve rapor çıktısı
 devgu scan . --fail-on medium                 # MEDIUM ve üstünde çıkış kodu 1
+devgu scan . --open                           # HTML raporu üretir ve tarayıcıda açar (dosya:satır → editörde açılır)
+devgu scan https://siteniz.com --authorized  # yayındaki siteyi tara (aşağıya bakın)
+devgu mcp                                     # yapay zekâ asistanları için MCP sunucusu
 devgu rules explain JS-TAINT-001 --lang tr    # kuralı Türkçe açıkla
 devgu rules list
 devgu config init                             # devgu.config.json oluştur
@@ -71,6 +76,49 @@ devgu cache clear
 **Çıktı dili:** Bulgu metinleri, rapor etiketleri ve CLI iletileri Türkçe veya İngilizce üretilir. Öncelik sırası: `--lang` bayrağı → `devgu.config.json` içindeki `"lang"` → varsayılan (`en`). Dil tarama anında sabitlenir; JSON/SARIF çıktısı `meta.lang` alanıyla hangi dilde üretildiğini belirtir. Kural kataloğu her iki dilde de hazırdır: [docs/RULES.md](docs/RULES.md) (EN), [docs/RULES.tr.md](docs/RULES.tr.md) (TR).
 
 **Ağ erişimi:** yalnızca `--online` verilirse ve yalnızca `api.osv.dev` adresine, sadece paket adı ve sürümleri gönderilir. Kaynak kod hiçbir zaman gönderilmez. Sonuçlar yerel önbelleğe yazılır; sonraki taramalar çevrimdışı çalışır.
+
+### Yayındaki siteyi tarama (`scan <url>`)
+
+Kaynak kod yerine yayındaki siteyi tarar: sayfayı ve aynı alan adındaki JavaScript dosyalarını indirir, kaynak haritaları (`.map`) herkese açıksa özgün kaynağı geri kurup aynı kurallardan geçirir, ayrıca güvenlik başlıklarını (CSP, HSTS, `nosniff`, çerçeveleme), karışık içeriği ve açıkta kalan `/.env`, `/.git` dosyalarını denetler.
+
+```bash
+devgu scan https://siteniz.com --authorized --open --lang tr
+```
+
+- **Yalnızca sahibi olduğunuz ya da test yetkiniz olan siteler için.** `--authorized` bayrağı bu onayı ister; bayrak olmadan tarama başlamaz.
+- Pasif çalışır: tarayıcının yapacağı istekleri atar, saldırı ya da deneme yapmaz. `robots.txt`'e uyar, aynı anda en fazla 4 istek atar, yönlendirmeleri yalnızca aynı alan adında izler, üçüncü taraf betikleri indirmez.
+- Yayına alınmış kod genellikle küçültülmüştür; bu yüzden bulguların güveni kaynak koda göre düşüktür ve satır numaraları yeniden biçimlendirilmiş koda aittir. `.map` dosyası açıksa gerçek kaynak dosyalar (`app.js.map#src/App.jsx`) taranır.
+- Sunucu tarafı kodu göremez; yalnızca tarayıcıya giden kısmı inceler.
+
+### MCP sunucusu (Claude, Cursor ve diğer yapay zekâ asistanları için)
+
+`devgu mcp`, taramayı [Model Context Protocol](https://modelcontextprotocol.io) üzerinden bir araç olarak sunar. Tamamen yerel ve ücretsizdir: hesap ya da API anahtarı gerekmez, kaynak kod bilgisayarınızdan çıkmaz.
+
+Claude Desktop / Cursor / Claude Code ayarına ekleyin (`npx` ile, kurulum gerekmez):
+
+```json
+{
+  "mcpServers": {
+    "devgu": {
+      "command": "npx",
+      "args": ["-y", "devgu", "mcp"],
+      "env": { "DEVGU_MCP_ROOTS": "/Users/siz/Projeler" }
+    }
+  }
+}
+```
+
+Claude Code için: `claude mcp add devgu -- npx -y devgu mcp`. Depodan çalıştırıyorsanız `command` olarak `node`, argüman olarak `/yol/devgu/apps/cli/dist/index.js mcp` kullanın.
+
+| Araç              | Ne yapar                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `scan_project`    | Bir klasörü tarar; bulguları `dosya:satır`, kanıt (maskeli) ve çözüm önerisiyle verir |
+| `scan_url`        | Yayındaki siteyi pasif tarar (`authorized: true` zorunlu)                             |
+| `explain_rule`    | Bir kuralı açıklar: ne bulur, nasıl düzeltilir, sınırları                             |
+| `list_rules`      | Tüm kuralları listeler                                                                |
+| `generate_report` | HTML / Markdown / JSON rapor dosyası yazar ve yolunu döndürür                         |
+
+Güvenlik: sunucu yalnızca `DEVGU_MCP_ROOTS` (yoksa başlatıldığı dizin) içindeki klasörleri tarayabilir ve rapor yazabilir; dışarıdaki yollar reddedilir. Gizli anahtarlar çıktıda maskelidir. İstemciye "bu projeyi tara ve bulguları düzelt" demeniz yeterlidir.
 
 ### Örnek bulgu
 
@@ -118,6 +166,8 @@ devgu/
 │   ├── taint-analysis/      Veri akışı (taint) motoru
 │   ├── dependency-engine/   Kilit dosyası, OSV istemcisi, CVSS
 │   ├── report-engine/       Metin / JSON / SARIF / Markdown / HTML
+│   ├── web-scan/            Yayındaki site taraması (betik indirme, kaynak haritası, başlıklar)
+│   ├── mcp/                 MCP sunucusu (stdio, bağımlılıksız JSON-RPC)
 │   └── core/                Keşif, yapılandırma, önbellek, analiz hattı
 ├── fixtures/                Zafiyetli ve güvenli örnek projeler (golden testler)
 └── docs/                    Mimari, tehdit modeli, kural kataloğu, ölçümler

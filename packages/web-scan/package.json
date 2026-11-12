@@ -1,0 +1,12 @@
+{
+  "name": "@devgu/web-scan",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@devgu/core": "*",
+    "@devgu/shared": "*",
+    "@devgu/rule-engine": "*"
+  }
+}

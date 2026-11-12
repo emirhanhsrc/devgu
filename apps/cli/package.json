@@ -11,6 +11,8 @@
     "@devgu/core": "*",
     "@devgu/shared": "*",
     "@devgu/report-engine": "*",
-    "@devgu/rule-engine": "*"
+    "@devgu/rule-engine": "*",
+    "@devgu/mcp": "*",
+    "@devgu/web-scan": "*"
   }
 }
