@@ -1,5 +1,5 @@
 import type { Rule } from "@devgu/rule-engine";
-import { redactValue, type Confidence, type Severity } from "@devgu/shared";
+import { redactValue, type Confidence, type LocalizedString, type Severity } from "@devgu/shared";
 
 /** Lines longer than this are only scanned up to this length (bounds regex work on hostile input). */
 const MAX_SCANNED_LINE_LENGTH = 4096;
@@ -62,30 +62,37 @@ const PROVIDER_PREFIX = /^(AKIA|ASIA|gh[pousr]_|AIza|xox[baprs]-|[sr]k_live_|eyJ
 
 export interface SecretPattern {
   id: string;
-  name: string;
-  description: string;
+  name: LocalizedString;
+  description: LocalizedString;
   /** Must be a global regex ("g") with linear-time structure; "d" is added internally. */
   regex: RegExp;
   /** Capture group that holds the secret; 0 = whole match. */
   group: number;
   severity: Severity;
   confidence: Confidence;
-  remediation: string;
-  limitations: string;
+  remediation: LocalizedString;
+  limitations: LocalizedString;
   validate?: (secret: string) => boolean;
 }
 
-const COMMON_REMEDIATION =
-  "Revoke and rotate the credential, remove it from the code and its git history, and load it from a secret manager or environment at runtime.";
-const COMMON_LIMITATION =
-  "Detected by pattern. The value may be a revoked, test or example credential; the scanner cannot check whether it is still valid.";
+const COMMON_REMEDIATION = {
+  en: "Revoke and rotate the credential, remove it from the code and its git history, and load it from a secret manager or environment at runtime.",
+  tr: "Kimlik bilgisini iptal edip döndürün (rotate), koddan ve git geçmişinden kaldırın ve çalışma zamanında bir sır yöneticisinden veya ortamdan yükleyin.",
+};
+const COMMON_LIMITATION = {
+  en: "Detected by pattern. The value may be a revoked, test or example credential; the scanner cannot check whether it is still valid.",
+  tr: "Desenle tespit edildi. Değer iptal edilmiş, test amaçlı veya örnek bir kimlik bilgisi olabilir; tarayıcı hâlâ geçerli olup olmadığını denetleyemez.",
+};
 const REF = ["https://cwe.mitre.org/data/definitions/798.html"];
 
 export const SECRET_PATTERNS: SecretPattern[] = [
   {
     id: "SEC-AWS-001",
-    name: "AWS access key ID",
-    description: "An AWS access key identifier is present in the source.",
+    name: { en: "AWS access key ID", tr: "AWS erişim anahtarı kimliği" },
+    description: {
+      en: "An AWS access key identifier is present in the source.",
+      tr: "Kaynakta bir AWS erişim anahtarı tanımlayıcısı bulunuyor.",
+    },
     regex: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g,
     group: 0,
     severity: "HIGH",
@@ -96,8 +103,11 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: "SEC-AWS-002",
-    name: "AWS secret access key",
-    description: "An AWS secret access key is assigned in the source.",
+    name: { en: "AWS secret access key", tr: "AWS gizli erişim anahtarı" },
+    description: {
+      en: "An AWS secret access key is assigned in the source.",
+      tr: "Kaynakta bir AWS gizli erişim anahtarı atanıyor.",
+    },
     regex: /aws_?secret_?(?:access_?)?key["']?\s{0,3}[:=]\s{0,3}["']?([A-Za-z0-9/+=]{40})\b/gi,
     group: 1,
     severity: "CRITICAL",
@@ -108,8 +118,11 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: "SEC-GITHUB-001",
-    name: "GitHub token",
-    description: "A GitHub personal access, OAuth or app token is present in the source.",
+    name: { en: "GitHub token", tr: "GitHub token'ı" },
+    description: {
+      en: "A GitHub personal access, OAuth or app token is present in the source.",
+      tr: "Kaynakta bir GitHub kişisel erişim, OAuth veya uygulama token'ı bulunuyor.",
+    },
     regex: /\bgh[pousr]_[A-Za-z0-9]{36,255}\b/g,
     group: 0,
     severity: "CRITICAL",
@@ -119,19 +132,31 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: "SEC-GOOGLE-001",
-    name: "Google API key",
-    description: "A Google API key is present in the source.",
+    name: { en: "Google API key", tr: "Google API anahtarı" },
+    description: {
+      en: "A Google API key is present in the source.",
+      tr: "Kaynakta bir Google API anahtarı bulunuyor.",
+    },
     regex: /\bAIza[0-9A-Za-z_-]{35}\b/g,
     group: 0,
     severity: "MEDIUM",
     confidence: "HIGH",
-    remediation: `${COMMON_REMEDIATION} Restrict the key by HTTP referrer or API in the Google Cloud console.`,
-    limitations: `${COMMON_LIMITATION} Browser keys are designed to be public when properly restricted.`,
+    remediation: {
+      en: `${COMMON_REMEDIATION.en} Restrict the key by HTTP referrer or API in the Google Cloud console.`,
+      tr: `${COMMON_REMEDIATION.tr} Anahtarı Google Cloud konsolunda HTTP yönlendiricisine veya API'ye göre kısıtlayın.`,
+    },
+    limitations: {
+      en: `${COMMON_LIMITATION.en} Browser keys are designed to be public when properly restricted.`,
+      tr: `${COMMON_LIMITATION.tr} Tarayıcı anahtarları, düzgün kısıtlandığında herkese açık olacak şekilde tasarlanmıştır.`,
+    },
   },
   {
     id: "SEC-SLACK-001",
-    name: "Slack token",
-    description: "A Slack API token is present in the source.",
+    name: { en: "Slack token", tr: "Slack token'ı" },
+    description: {
+      en: "A Slack API token is present in the source.",
+      tr: "Kaynakta bir Slack API token'ı bulunuyor.",
+    },
     regex: /\bxox[baprs]-[0-9A-Za-z-]{10,72}\b/g,
     group: 0,
     severity: "HIGH",
@@ -141,8 +166,11 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: "SEC-STRIPE-001",
-    name: "Stripe live key",
-    description: "A Stripe live secret or restricted key is present in the source.",
+    name: { en: "Stripe live key", tr: "Stripe canlı anahtarı" },
+    description: {
+      en: "A Stripe live secret or restricted key is present in the source.",
+      tr: "Kaynakta bir Stripe canlı gizli veya kısıtlı anahtarı bulunuyor.",
+    },
     regex: /\b[sr]k_live_[0-9a-zA-Z]{24,99}\b/g,
     group: 0,
     severity: "CRITICAL",
@@ -152,33 +180,46 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: "SEC-PRIVKEY-001",
-    name: "Private key",
-    description: "A PEM encoded private key block starts here.",
+    name: { en: "Private key", tr: "Özel anahtar" },
+    description: {
+      en: "A PEM encoded private key block starts here.",
+      tr: "Burada PEM kodlu bir özel anahtar bloğu başlıyor.",
+    },
     regex:
       /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED )?PRIVATE KEY(?: BLOCK)?-----[^\n]{0,4000}/g,
     group: 0,
     severity: "CRITICAL",
     confidence: "HIGH",
     remediation: COMMON_REMEDIATION,
-    limitations:
-      "Only the header is matched; the file may contain an intentionally public test key.",
+    limitations: {
+      en: "Only the header is matched; the file may contain an intentionally public test key.",
+      tr: "Yalnızca başlık eşleşir; dosya bilerek herkese açık bir test anahtarı içerebilir.",
+    },
   },
   {
     id: "SEC-JWT-001",
-    name: "JSON Web Token",
-    description:
-      "A JWT-like token is hardcoded. Tokens can carry identity and grant access until they expire.",
+    name: { en: "JSON Web Token", tr: "JSON Web Token" },
+    description: {
+      en: "A JWT-like token is hardcoded. Tokens can carry identity and grant access until they expire.",
+      tr: "JWT benzeri bir token koda gömülü. Token'lar kimlik taşıyabilir ve süreleri dolana dek erişim sağlayabilir.",
+    },
     regex: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g,
     group: 0,
     severity: "MEDIUM",
     confidence: "MEDIUM",
     remediation: COMMON_REMEDIATION,
-    limitations: `${COMMON_LIMITATION} The token may already be expired.`,
+    limitations: {
+      en: `${COMMON_LIMITATION.en} The token may already be expired.`,
+      tr: `${COMMON_LIMITATION.tr} Token'ın süresi çoktan dolmuş olabilir.`,
+    },
   },
   {
     id: "SEC-CONNSTR-001",
-    name: "Credentials in connection string",
-    description: "A database or broker connection string contains an inline password.",
+    name: { en: "Credentials in connection string", tr: "Bağlantı dizgesinde kimlik bilgileri" },
+    description: {
+      en: "A database or broker connection string contains an inline password.",
+      tr: "Bir veritabanı veya aracı (broker) bağlantı dizgesi satır içi parola içeriyor.",
+    },
     regex:
       /\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|rediss?|amqps?):\/\/[^\s:/@'"`]{1,100}:([^\s@'"`]{3,100})@/gi,
     group: 1,
@@ -190,31 +231,39 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   },
   {
     id: "SEC-PASSWORD-001",
-    name: "Hardcoded password",
-    description:
-      "A string literal that looks like a real password is assigned to a password-like name.",
+    name: { en: "Hardcoded password", tr: "Koda gömülü parola" },
+    description: {
+      en: "A string literal that looks like a real password is assigned to a password-like name.",
+      tr: "Gerçek bir parola gibi görünen bir dizge sabiti, parola benzeri bir ada atanıyor.",
+    },
     regex: /(?:password|passwd|pwd)["']?\s{0,3}[:=]\s{0,3}["']([^"'\s\\]{6,100})["']/gi,
     group: 1,
     severity: "HIGH",
     confidence: "MEDIUM",
     remediation: COMMON_REMEDIATION,
-    limitations:
-      "Heuristic: values that look like labels, placeholders or plain words are skipped, so weak real passwords can be missed.",
+    limitations: {
+      en: "Heuristic: values that look like labels, placeholders or plain words are skipped, so weak real passwords can be missed.",
+      tr: "Sezgisel: etiket, yer tutucu veya düz sözcük gibi görünen değerler atlanır; bu yüzden zayıf gerçek parolalar kaçırılabilir.",
+    },
     validate: (s) => !PROVIDER_PREFIX.test(s) && isPlausiblePassword(s),
   },
   {
     id: "SEC-TOKEN-001",
-    name: "Hardcoded API key or token",
-    description:
-      "A high-entropy string literal is assigned to a name such as apiKey, secret or token.",
+    name: { en: "Hardcoded API key or token", tr: "Koda gömülü API anahtarı veya token" },
+    description: {
+      en: "A high-entropy string literal is assigned to a name such as apiKey, secret or token.",
+      tr: "Yüksek entropili bir dizge sabiti apiKey, secret veya token gibi bir ada atanıyor.",
+    },
     regex:
       /(?:api[_-]?key|apikey|secret|client[_-]?secret|access[_-]?token|auth[_-]?token|private[_-]?key)["']?\s{0,3}[:=]\s{0,3}["']([A-Za-z0-9+/=_-]{16,200})["']/gi,
     group: 1,
     severity: "HIGH",
     confidence: "MEDIUM",
     remediation: COMMON_REMEDIATION,
-    limitations:
-      "Entropy based: random-looking identifiers (hashes, ids) can be reported, and low-entropy real secrets are missed.",
+    limitations: {
+      en: "Entropy based: random-looking identifiers (hashes, ids) can be reported, and low-entropy real secrets are missed.",
+      tr: "Entropi tabanlı: rastgele görünen tanımlayıcılar (hash'ler, kimlikler) raporlanabilir ve düşük entropili gerçek sırlar kaçırılır.",
+    },
     validate: (s) => !PROVIDER_PREFIX.test(s) && isPlausibleToken(s),
   },
 ];

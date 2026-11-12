@@ -34,6 +34,8 @@ export const ConfigSchema = z
     maxFiles: z.number().int().min(1).max(500_000).default(50_000),
     /** Lowest severity that makes the CLI exit with code 1. */
     failOn: SeveritySchema.default("HIGH"),
+    /** Output language for findings and reports. The --lang flag overrides it. */
+    lang: z.enum(["en", "tr"]).optional(),
     suppressions: z
       .array(
         z

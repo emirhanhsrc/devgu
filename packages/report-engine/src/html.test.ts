@@ -31,12 +31,18 @@ function finding(overrides: Partial<Finding> = {}): Finding {
   };
 }
 
-function result(findings: Finding[], suppressed: Finding[] = [], rootName = "demo"): ScanResult {
+function result(
+  findings: Finding[],
+  suppressed: Finding[] = [],
+  rootName = "demo",
+  lang: "en" | "tr" = "en",
+): ScanResult {
   return {
     meta: {
       tool: "devgu",
       toolVersion: "0.1.0",
       rulesetVersion: "abc",
+      lang,
       scannedAt: "2026-01-01T00:00:00.000Z",
       rootName,
       engines: ["security", "taint"],
@@ -221,6 +227,17 @@ describe("HTML report behaviour", () => {
       "a.js:1 — Source: location.search",
       "a.js:3 — Sink: innerHTML assignment",
     ]);
+    dom.window.close();
+  });
+
+  it("renders chrome in Turkish when the scan language is tr", () => {
+    const dom = load(renderHtml(result(findings, suppressed, "demo", "tr")));
+    const doc = dom.window.document;
+    expect(doc.documentElement.getAttribute("lang")).toBe("tr");
+    expect(doc.getElementById("count")?.textContent).toBe("2 bulgunun 2 tanesi gösteriliyor");
+    const detail = doc.querySelector(".finding .body")?.textContent ?? "";
+    expect(detail).toContain("Ne tespit edildi");
+    expect(detail).toContain("Nasıl düzeltilir");
     dom.window.close();
   });
 });

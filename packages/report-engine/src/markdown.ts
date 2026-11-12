@@ -1,4 +1,11 @@
-import { SEVERITIES, stripControlChars, type Finding, type ScanResult } from "@devgu/shared";
+import {
+  messages,
+  SEVERITIES,
+  stripControlChars,
+  type Finding,
+  type Lang,
+  type ScanResult,
+} from "@devgu/shared";
 
 /** Escapes Markdown/HTML metacharacters in text that comes from the scanned repository. */
 export function mdEscape(text: string): string {
@@ -17,74 +24,78 @@ function fenced(content: string): string {
   return `${fence}\n${safe}\n${fence}`;
 }
 
-function findingBlock(finding: Finding): string[] {
+function findingBlock(finding: Finding, lang: Lang): string[] {
+  const m = messages(lang).report;
   const lines: string[] = [];
   lines.push(`#### ${mdEscape(finding.title)}`);
   lines.push("");
   lines.push(
-    `- **Rule:** ${mdEscape(finding.ruleId)} (${mdEscape(finding.category)}, engine ${mdEscape(finding.engine)})`,
+    `- **${mdEscape(m.rule)}:** ${mdEscape(m.ruleLine(finding.ruleId, finding.category, finding.engine))}`,
   );
-  lines.push(`- **Severity / confidence:** ${finding.severity} / ${finding.confidence}`);
-  lines.push(`- **Location:** ${mdEscape(`${finding.filePath}:${finding.startLine}`)}`);
+  lines.push(
+    `- **${mdEscape(m.severityConfidence)}:** ${finding.severity} / ${finding.confidence}`,
+  );
+  lines.push(
+    `- **${mdEscape(m.location)}:** ${mdEscape(`${finding.filePath}:${finding.startLine}`)}`,
+  );
   if (finding.status === "suppressed" && finding.suppression) {
     lines.push(
-      `- **Suppressed (${finding.suppression.kind}):** ${mdEscape(finding.suppression.justification)}`,
+      `- **${mdEscape(m.suppressedKind(finding.suppression.kind))}:** ${mdEscape(finding.suppression.justification)}`,
     );
   }
-  lines.push("", mdEscape(finding.description), "", "Evidence:", "", fenced(finding.evidence));
+  lines.push("", mdEscape(finding.description), "", m.evidenceLabel, "", fenced(finding.evidence));
   if (finding.dataFlow?.length) {
-    lines.push("", "Data flow:", "");
+    lines.push("", m.dataFlowLabel, "");
     finding.dataFlow.forEach((step, index) => {
       lines.push(
         `${index + 1}. ${mdEscape(`${step.filePath}:${step.line}`)} - ${mdEscape(step.description)}`,
       );
     });
   }
-  lines.push("", `**How to fix:** ${mdEscape(finding.remediation)}`, "");
-  lines.push(`**Limitations:** ${mdEscape(finding.limitations)}`, "");
+  lines.push("", `**${mdEscape(m.remediation)}:** ${mdEscape(finding.remediation)}`, "");
+  lines.push(`**${mdEscape(m.limitations)}:** ${mdEscape(finding.limitations)}`, "");
   return lines;
 }
 
 export function renderMarkdown(result: ScanResult): string {
   const { meta, stats } = result;
+  const m = messages(meta.lang).report;
   const out: string[] = [];
-  out.push("# DEVGU report", "");
+  out.push(`# ${m.reportHeading}`, "");
   out.push(`| | |`, `|---|---|`);
-  out.push(`| Repository | ${mdEscape(meta.rootName)} |`);
-  out.push(`| Scanned at | ${mdEscape(meta.scannedAt)} |`);
-  out.push(`| Scanner version | ${mdEscape(meta.toolVersion)} |`);
-  out.push(`| Rule set | ${mdEscape(meta.rulesetVersion)} |`);
-  out.push(`| Engines | ${mdEscape(meta.engines.join(", ") || "-")} |`);
-  out.push(`| Files scanned | ${stats.filesScanned} (${stats.filesSkipped} skipped) |`);
-  out.push(`| Duration | ${stats.totalMs} ms |`, "");
+  out.push(`| ${m.repository} | ${mdEscape(meta.rootName)} |`);
+  out.push(`| ${m.scannedAt} | ${mdEscape(meta.scannedAt)} |`);
+  out.push(`| ${m.scannerVersion} | ${mdEscape(meta.toolVersion)} |`);
+  out.push(`| ${m.ruleSet} | ${mdEscape(meta.rulesetVersion)} |`);
+  out.push(`| ${m.engines} | ${mdEscape(meta.engines.join(", ") || "-")} |`);
+  out.push(
+    `| ${m.filesScanned} | ${m.filesScannedValue(stats.filesScanned, stats.filesSkipped)} |`,
+  );
+  out.push(`| ${m.duration} | ${stats.totalMs} ms |`, "");
 
-  out.push("## Summary", "", "| Severity | Findings |", "|---|---|");
+  out.push(`## ${m.summaryHeading}`, "", `| ${m.severity} | ${m.findingsColumn} |`, "|---|---|");
   for (const severity of SEVERITIES)
     out.push(`| ${severity} | ${stats.findingsBySeverity[severity]} |`);
-  out.push(
-    "",
-    `${result.findings.length} open finding(s), ${result.suppressed.length} suppressed.`,
-    "",
-  );
+  out.push("", m.openSuppressed(result.findings.length, result.suppressed.length), "");
 
-  out.push("## Findings", "");
+  out.push(`## ${m.findings}`, "");
   if (result.findings.length === 0) {
-    out.push("No findings. This does not prove the code is safe; see each rule's limitations.", "");
+    out.push(m.noFindings, "");
   }
   for (const severity of SEVERITIES) {
     const group = result.findings.filter((f) => f.severity === severity);
     if (group.length === 0) continue;
     out.push(`### ${severity} (${group.length})`, "");
-    for (const finding of group) out.push(...findingBlock(finding));
+    for (const finding of group) out.push(...findingBlock(finding, meta.lang));
   }
 
   if (result.suppressed.length > 0) {
-    out.push("## Suppressed findings", "");
-    for (const finding of result.suppressed) out.push(...findingBlock(finding));
+    out.push(`## ${m.suppressedHeading}`, "");
+    for (const finding of result.suppressed) out.push(...findingBlock(finding, meta.lang));
   }
 
   if (result.diagnostics.length > 0) {
-    out.push("## Diagnostics", "");
+    out.push(`## ${m.diagnosticsHeading}`, "");
     for (const d of result.diagnostics) {
       out.push(
         `- ${mdEscape(d.source)}${d.filePath ? ` ${mdEscape(d.filePath)}` : ""}: ${mdEscape(d.message)}`,

@@ -1,9 +1,12 @@
 import {
+  DEFAULT_LANG,
   fingerprint,
+  loc,
   sha256Hex,
   truncate,
   type Diagnostic,
   type Finding,
+  type Lang,
   type Severity,
 } from "@devgu/shared";
 import { mergeVisitors, traverse, type SourceFile, type Visitor } from "@devgu/parser";
@@ -62,6 +65,7 @@ export function buildFinding(
   file: SourceFile,
   report: Report,
   settings: RuleSettingsMap,
+  lang: Lang = DEFAULT_LANG,
 ): Finding {
   const startLine = Math.max(1, report.line);
   const endLine = Math.max(startLine, report.endLine ?? startLine);
@@ -74,8 +78,8 @@ export function buildFinding(
     id: `${meta.id}-${print.slice(0, 8)}-L${startLine}`,
     ruleId: meta.id,
     engine: meta.engine,
-    title: report.title ?? meta.name,
-    description: report.description ?? meta.description,
+    title: report.title ?? loc(meta.name, lang),
+    description: report.description ?? loc(meta.description, lang),
     severity: settings[meta.id]?.severity ?? report.severity ?? meta.severity,
     confidence: report.confidence ?? meta.confidence,
     category: meta.category,
@@ -83,9 +87,9 @@ export function buildFinding(
     startLine,
     endLine,
     evidence,
-    remediation: meta.remediation,
+    remediation: loc(meta.remediation, lang),
     references: meta.references,
-    limitations: meta.limitations,
+    limitations: loc(meta.limitations, lang),
     fingerprint: print,
     status: "open",
     ...(report.dataFlow ? { dataFlow: report.dataFlow } : {}),
@@ -139,6 +143,7 @@ export function runRules(
   file: SourceFile,
   rules: readonly Rule[],
   settings: RuleSettingsMap,
+  lang: Lang = DEFAULT_LANG,
 ): RunResult {
   const findings: Finding[] = [];
   const diagnostics: Diagnostic[] = [];
@@ -157,10 +162,11 @@ export function runRules(
     let count = 0;
     const context = {
       file,
+      lang,
       report: (report: Report) => {
         if (count >= MAX_FINDINGS_PER_RULE_PER_FILE) return;
         count += 1;
-        findings.push(buildFinding(rule.meta, file, report, settings));
+        findings.push(buildFinding(rule.meta, file, report, settings, lang));
       },
     };
     try {

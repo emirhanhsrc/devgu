@@ -2,25 +2,43 @@ import { lstat, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
-import { fingerprint, SeveritySchema, type Diagnostic, type Finding } from "@devgu/shared";
+import {
+  DEFAULT_LANG,
+  fingerprint,
+  loc,
+  messages,
+  SeveritySchema,
+  type Diagnostic,
+  type Finding,
+  type Lang,
+} from "@devgu/shared";
 import { indexLocations, parsePackageLock, type LockedPackage } from "./lockfile.js";
 import { OsvClient, type FetchLike, type Vulnerability } from "./osv.js";
 
 export const DEPENDENCY_RULE = {
   id: "DEP-VULN-001",
-  name: "Dependency with a known vulnerability",
-  description:
-    "A package version in the lockfile matches an advisory in the OSV database (GitHub Advisory Database, malicious package reports, ...).",
+  name: {
+    en: "Dependency with a known vulnerability",
+    tr: "Bilinen bir zafiyete sahip bağımlılık",
+  },
+  description: {
+    en: "A package version in the lockfile matches an advisory in the OSV database (GitHub Advisory Database, malicious package reports, ...).",
+    tr: "Kilit dosyasındaki bir paket sürümü, OSV veritabanındaki bir danışma kaydıyla (GitHub Advisory Database, zararlı paket raporları, ...) eşleşiyor.",
+  },
   category: "dependency-vulnerability",
   severity: "HIGH" as const,
   confidence: "HIGH" as const,
   engine: "dependencies",
   targets: "text" as const,
-  remediation:
-    "Upgrade to a fixed version (see the finding), or remove the dependency. Re-run `npm audit fix` or update the lockfile and review the changes.",
+  remediation: {
+    en: "Upgrade to a fixed version (see the finding), or remove the dependency. Re-run `npm audit fix` or update the lockfile and review the changes.",
+    tr: "Düzeltilmiş bir sürüme yükseltin (bulguya bakın) ya da bağımlılığı kaldırın. `npm audit fix` komutunu yeniden çalıştırın veya kilit dosyasını güncelleyip değişiklikleri gözden geçirin.",
+  },
   references: ["https://osv.dev/", "https://cwe.mitre.org/data/definitions/1395.html"],
-  limitations:
-    "Matches the exact versions in the root package-lock.json against advisory data; it cannot tell whether your code calls the vulnerable function. Severity comes from the advisory (or CVSS v3 vector) and defaults to MEDIUM when absent. yarn.lock, pnpm-lock.yaml and nested lockfiles are not analysed yet.",
+  limitations: {
+    en: "Matches the exact versions in the root package-lock.json against advisory data; it cannot tell whether your code calls the vulnerable function. Severity comes from the advisory (or CVSS v3 vector) and defaults to MEDIUM when absent. yarn.lock, pnpm-lock.yaml and nested lockfiles are not analysed yet.",
+    tr: "Kök package-lock.json içindeki tam sürümleri danışma verileriyle eşleştirir; kodunuzun zafiyetli fonksiyonu çağırıp çağırmadığını bilemez. Şiddet, danışma kaydından (veya CVSS v3 vektöründen) gelir ve yoksa MEDIUM varsayılır. yarn.lock, pnpm-lock.yaml ve iç içe kilit dosyaları henüz analiz edilmez.",
+  },
   version: 1,
 };
 
@@ -73,6 +91,8 @@ export interface AuditOptions {
   signal?: AbortSignal;
   fetchImpl?: FetchLike;
   now?: () => number;
+  /** Language for the finding text. Diagnostics stay in English (operational log). */
+  lang?: Lang;
 }
 
 export interface AuditResult {
@@ -180,6 +200,8 @@ export async function auditDependencies(options: AuditOptions): Promise<AuditRes
     });
   }
 
+  const lang = options.lang ?? DEFAULT_LANG;
+  const dep = messages(lang).dep;
   const lines = indexLocations(lock.text);
   const findings: Finding[] = [];
   for (const [key, locations] of byKey) {
@@ -206,7 +228,14 @@ export async function auditDependencies(options: AuditOptions): Promise<AuditRes
         ruleId: DEPENDENCY_RULE.id,
         engine: DEPENDENCY_RULE.engine,
         title: `${first.name}@${first.version}: ${vuln.summary}`,
-        description: `${vuln.summary} (${vuln.id}). ${direct ? "Direct" : "Transitive"} dependency${devOnly ? " (development only)" : ""}${locations.length > 1 ? `, installed ${locations.length} times` : ""}.${vuln.severityKnown ? "" : " The advisory has no usable severity; MEDIUM is assumed."}`,
+        description: dep.description({
+          summary: vuln.summary,
+          id: vuln.id,
+          direct,
+          devOnly,
+          installCount: locations.length,
+          severityKnown: vuln.severityKnown,
+        }),
         severity: devOnly && vuln.severity === "CRITICAL" ? "HIGH" : vuln.severity,
         confidence: DEPENDENCY_RULE.confidence,
         category: DEPENDENCY_RULE.category,
@@ -216,13 +245,13 @@ export async function auditDependencies(options: AuditOptions): Promise<AuditRes
         evidence,
         remediation:
           fixed.length > 0
-            ? `Upgrade ${first.name} to ${fixed.join(" or ")} (or later).`
-            : DEPENDENCY_RULE.remediation,
+            ? dep.upgrade(first.name, fixed.join(lang === "tr" ? " veya " : " or "))
+            : loc(DEPENDENCY_RULE.remediation, lang),
         references:
           vuln.references.length > 0
             ? vuln.references
             : [`https://osv.dev/vulnerability/${vuln.id}`],
-        limitations: DEPENDENCY_RULE.limitations,
+        limitations: loc(DEPENDENCY_RULE.limitations, lang),
         fingerprint: print,
         status: "open",
       });
