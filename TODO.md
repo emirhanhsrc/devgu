@@ -48,6 +48,7 @@ Kural: her aşamada testler geçer, sahte bulgu/istatistik yok.
 - [x] Tek dosyalık HTML rapor (CSP, `textContent`, jsdom ile XSS testi)
 - [x] Markdown rapor (kaçışlı, güvenli kod çiti)
 - [x] Rapor metaverisi: sürüm, kural seti, tarih, motorlar, sayılar, bastırılanlar
+- [x] Çok dilli çıktı (TR/EN): `--lang` + config, tüm kural/akış/rapor/CLI metinleri, `meta.lang`, iki dilli kural kataloğu
 - [ ] Import grafı ve döngüsel bağımlılık (isteğe bağlı) → [ROADMAP.md](ROADMAP.md)
 
 ## Aşama 6 — Yayın hazırlığı ✅ (npm yayını hariç)

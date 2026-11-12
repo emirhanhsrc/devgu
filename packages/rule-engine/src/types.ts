@@ -1,20 +1,20 @@
-import type { Confidence, FlowStep, Severity } from "@devgu/shared";
+import type { Confidence, FlowStep, Lang, LocalizedString, Severity } from "@devgu/shared";
 import type { SourceFile, Visitor } from "@devgu/parser";
 
 export interface RuleMeta {
   /** Unique, stable identifier, e.g. JS-XSS-001. */
   id: string;
-  name: string;
-  description: string;
+  name: LocalizedString;
+  description: LocalizedString;
   category: string;
   severity: Severity;
   confidence: Confidence;
   /** "ast" rules need a parsed script, "text" rules run on any scannable file. */
   targets: "ast" | "text";
-  remediation: string;
+  remediation: LocalizedString;
   references: string[];
   /** What this rule cannot detect or may misreport. Mandatory. */
-  limitations: string;
+  limitations: LocalizedString;
   /** Bump when detection logic changes; part of the cache key. */
   version: number;
   engine: string;
@@ -36,6 +36,8 @@ export interface Report {
 
 export interface RuleContext {
   readonly file: SourceFile;
+  /** Language the scan runs in; rules localise any dynamic text they build. */
+  readonly lang: Lang;
   report(report: Report): void;
 }
 

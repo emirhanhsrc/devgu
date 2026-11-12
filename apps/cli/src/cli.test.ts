@@ -108,4 +108,43 @@ describe("cli", () => {
   it("clears the cache", async () => {
     expect(await run(["cache", "clear"])).toBe(EXIT.OK);
   });
+
+  it("renders Turkish findings with --lang tr", async () => {
+    await mkdir(path.join(tmp, "tr"));
+    await writeFile(path.join(tmp, "tr", "a.js"), "eval(location.hash);\n");
+    expect(await run(["scan", "tr", "-q", "--no-cache", "--lang", "tr"])).toBe(EXIT.FINDINGS);
+    expect(out).toContain("Kod enjeksiyonu");
+    expect(out).toContain("Kaynak: location.hash");
+    expect(out).toContain("bastırıldı");
+  });
+
+  it("reads the language from devgu.config.json and lets --lang override it", async () => {
+    await mkdir(path.join(tmp, "c"));
+    await writeFile(path.join(tmp, "c", "a.js"), "eval(location.hash);\n");
+    await writeFile(path.join(tmp, "c", "devgu.config.json"), JSON.stringify({ lang: "tr" }));
+    await run(["scan", "c", "-q", "--no-cache"]);
+    expect(out).toContain("Kaynak: location.hash");
+    out = "";
+    await run(["scan", "c", "-q", "--no-cache", "--lang", "en"]);
+    expect(out).toContain("Source: location.hash");
+  });
+
+  it("rejects an unknown language", async () => {
+    expect(await run(["scan", ".", "--lang", "de"])).toBe(EXIT.USAGE);
+    expect(err.toLowerCase()).toContain("language");
+  });
+
+  it("explains rules in Turkish", async () => {
+    expect(await run(["rules", "explain", "js-taint-001", "--lang", "tr"])).toBe(EXIT.OK);
+    expect(out).toContain("Sınırlamalar:");
+  });
+
+  it("writes a Turkish html report whose lang attribute is tr", async () => {
+    await mkdir(path.join(tmp, "h"));
+    await writeFile(path.join(tmp, "h", "a.js"), "el.innerHTML = location.hash;\n");
+    await run(["scan", "h", "-f", "html", "-o", "tr.html", "-q", "--no-cache", "--lang", "tr"]);
+    const html = await readFile(path.join(tmp, "tr.html"), "utf8");
+    expect(html).toContain('<html lang="tr">');
+    expect(html).toContain("Kodunuzu Anlayın");
+  });
 });

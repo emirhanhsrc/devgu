@@ -8,6 +8,7 @@
 export const CLIENT_SCRIPT = String.raw`(function () {
   "use strict";
   var data = JSON.parse(document.getElementById("devgu-data").textContent);
+  var S = data.strings || {};
   var SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
   var state = { severity: "", confidence: "", category: "", engine: "", query: "", suppressed: false };
 
@@ -56,10 +57,10 @@ export const CLIENT_SCRIPT = String.raw`(function () {
     });
     var s = data.stats;
     var rows = [
-      ["Files scanned", s.filesScanned], ["Files skipped", s.filesSkipped],
-      ["Cache hits", s.cacheHits + " / " + (s.cacheHits + s.cacheMisses)],
-      ["Parse time", s.parseMs + " ms"], ["Rule time", s.ruleMs + " ms"],
-      ["Total time", s.totalMs + " ms"], ["Heap used", s.heapUsedMb + " MB"]
+      [S.filesScanned, s.filesScanned], [S.filesSkipped, s.filesSkipped],
+      [S.cacheHits, s.cacheHits + " / " + (s.cacheHits + s.cacheMisses)],
+      [S.parseTime, s.parseMs + " ms"], [S.ruleTime, s.ruleMs + " ms"],
+      [S.totalTime, s.totalMs + " ms"], [S.heapUsed, s.heapUsedMb + " MB"]
     ];
     var list = byId("stats");
     clear(list);
@@ -111,29 +112,29 @@ export const CLIENT_SCRIPT = String.raw`(function () {
     var details = el("details", "finding sev-" + sev + (f.status === "suppressed" ? " is-suppressed" : ""));
     var summary = el("summary");
     summary.appendChild(el("span", "badge sev-" + sev, sev));
-    summary.appendChild(el("span", "badge conf", f.confidence + " confidence"));
+    summary.appendChild(el("span", "badge conf", S.confidenceTpl.replace("{c}", f.confidence)));
     summary.appendChild(el("span", "title", f.title));
     summary.appendChild(el("span", "where", f.filePath + ":" + f.startLine));
     details.appendChild(summary);
 
     var body = el("div", "body");
     body.appendChild(el("p", "rule", f.ruleId + " · " + f.category + " · " + f.engine));
-    body.appendChild(section("What was detected", f.description));
-    body.appendChild(el("h4", "", "Evidence"));
+    body.appendChild(section(S.whatDetected, f.description));
+    body.appendChild(el("h4", "", S.evidence));
     body.appendChild(el("pre", "evidence", f.evidence));
     if (f.dataFlow && f.dataFlow.length) {
-      body.appendChild(el("h4", "", "Data flow (source to sink)"));
+      body.appendChild(el("h4", "", S.dataFlow));
       var flow = el("ol", "flow");
       f.dataFlow.forEach(function (step) {
         flow.appendChild(el("li", "", step.filePath + ":" + step.line + " — " + step.description));
       });
       body.appendChild(flow);
     }
-    body.appendChild(section("How to fix", f.remediation));
-    body.appendChild(section("Limitations of this detection", f.limitations));
-    if (f.suppression) body.appendChild(section("Suppressed (" + f.suppression.kind + ")", f.suppression.justification));
+    body.appendChild(section(S.howToFix, f.remediation));
+    body.appendChild(section(S.limitationsDetail, f.limitations));
+    if (f.suppression) body.appendChild(section(S.suppressedTpl.replace("{kind}", f.suppression.kind), f.suppression.justification));
     if (f.references && f.references.length) {
-      body.appendChild(el("h4", "", "References"));
+      body.appendChild(el("h4", "", S.references));
       var refs = el("ul", "refs");
       f.references.forEach(function (url) {
         var item = el("li");
@@ -150,7 +151,7 @@ export const CLIENT_SCRIPT = String.raw`(function () {
       });
       body.appendChild(refs);
     }
-    body.appendChild(el("p", "fp", "Fingerprint " + f.fingerprint));
+    body.appendChild(el("p", "fp", S.fingerprintLabel + " " + f.fingerprint));
     details.appendChild(body);
     return details;
   }
@@ -162,9 +163,9 @@ export const CLIENT_SCRIPT = String.raw`(function () {
     var shown = data.findings.filter(matches);
     shown.forEach(function (f) { list.appendChild(renderFinding(f)); });
     var total = state.suppressed ? data.findings.length : openFindings().length;
-    setText("count", "Showing " + shown.length + " of " + total + " finding(s)");
+    setText("count", S.showingTpl.replace("{shown}", shown.length).replace("{total}", total));
     byId("empty").hidden = shown.length !== 0;
-    byId("empty").textContent = total === 0 ? "No findings. This does not prove the code is safe; see each rule's limitations." : "No findings match the current filters.";
+    byId("empty").textContent = total === 0 ? S.noFindings : S.noMatch;
   }
 
   function renderDiagnostics() {
@@ -175,7 +176,7 @@ export const CLIENT_SCRIPT = String.raw`(function () {
       list.appendChild(el("li", "", d.source + (d.filePath ? " " + d.filePath : "") + ": " + d.message));
     });
     data.skipped.forEach(function (s) {
-      list.appendChild(el("li", "", "Skipped " + s.filePath + " (" + s.reason + ")"));
+      list.appendChild(el("li", "", S.skippedTpl.replace("{file}", s.filePath).replace("{reason}", s.reason)));
     });
   }
 

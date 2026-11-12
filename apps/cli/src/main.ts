@@ -13,8 +13,23 @@ import {
   ruleCatalog,
   scan,
 } from "@devgu/core";
-import { REPORT_FORMATS, renderReport, type ReportFormat } from "@devgu/report-engine";
-import { SEVERITIES, SeveritySchema, meetsThreshold, stripControlChars } from "@devgu/shared";
+import {
+  REPORT_FORMATS,
+  renderReport,
+  type ReportFormat,
+  type RuleDescriptor,
+} from "@devgu/report-engine";
+import {
+  DEFAULT_LANG,
+  SEVERITIES,
+  SeveritySchema,
+  isLang,
+  loc,
+  meetsThreshold,
+  messages,
+  stripControlChars,
+  type Lang,
+} from "@devgu/shared";
 
 export interface Io {
   stdout: (text: string) => void;
@@ -25,7 +40,7 @@ export interface Io {
 
 export const EXIT = { OK: 0, FINDINGS: 1, USAGE: 2, ERROR: 3, CANCELLED: 130 } as const;
 
-const HELP = `devgu - deterministic code security and architecture analysis
+const HELP_EN = `devgu - deterministic code security and architecture analysis
 
 Usage:
   devgu scan [path] [options]    Scan a directory (default: current directory)
@@ -38,6 +53,7 @@ Usage:
 Scan options:
   -f, --format <fmt>     ${REPORT_FORMATS.join(" | ")} (default: text)
   -o, --output <file>    Write the report to a file instead of stdout
+      --lang <tr|en>     Output language for findings and reports (default: en)
       --security         Run only security (pattern + taint) rules
       --secrets          Run only secret detection
       --dependencies     Run only dependency vulnerability analysis
@@ -49,6 +65,36 @@ Scan options:
 
 Exit codes: 0 ok, 1 findings at/above --fail-on, 2 usage error, 3 runtime error, 130 cancelled.
 `;
+
+const HELP_TR = `devgu - deterministik kod güvenliği ve mimari analizi
+
+Kullanım:
+  devgu scan [yol] [seçenekler]  Bir dizini tara (varsayılan: geçerli dizin)
+  devgu rules list               Tüm kuralları listele
+  devgu rules explain <id>       Bir kuralı açıkla
+  devgu config init              ${CONFIG_FILE_NAME} oluştur
+  devgu cache clear              Tarama önbelleğini sil
+  devgu version
+
+Tarama seçenekleri:
+  -f, --format <biçim>   ${REPORT_FORMATS.join(" | ")} (varsayılan: text)
+  -o, --output <dosya>   Raporu stdout yerine bir dosyaya yaz
+      --lang <tr|en>     Bulgu ve raporların dili (varsayılan: en)
+      --security         Yalnızca güvenlik (desen + taint) kurallarını çalıştır
+      --secrets          Yalnızca gizli anahtar taraması
+      --dependencies     Yalnızca bağımlılık zafiyet analizi
+      --online           Yeni zafiyet verisi için api.osv.dev'i sorgula (yalnızca paket adı ve sürümü gönderilir)
+      --config <dosya>   Belirli bir yapılandırma dosyası kullan
+      --fail-on <düzey>  Şu düzey ve üstünde 1 ile çık: ${SEVERITIES.join(" | ")} (varsayılan: HIGH)
+      --no-cache         Tarama önbelleğini okuma veya yazma
+  -q, --quiet            İlerleme çıktısı yok
+
+Çıkış kodları: 0 tamam, 1 --fail-on ve üstü bulgular, 2 kullanım hatası, 3 çalışma hatası, 130 iptal.
+`;
+
+function helpText(lang: Lang): string {
+  return lang === "tr" ? HELP_TR : HELP_EN;
+}
 
 export async function main(argv: string[], io: Io, signal?: AbortSignal): Promise<number> {
   let parsed;
@@ -66,19 +112,28 @@ export async function main(argv: string[], io: Io, signal?: AbortSignal): Promis
         config: { type: "string" },
         "fail-on": { type: "string" },
         "no-cache": { type: "boolean" },
+        lang: { type: "string" },
         quiet: { type: "boolean", short: "q" },
         help: { type: "boolean", short: "h" },
       },
     });
   } catch (error) {
-    io.stderr(`${error instanceof Error ? error.message : String(error)}\n\n${HELP}`);
+    io.stderr(`${error instanceof Error ? error.message : String(error)}\n\n${HELP_EN}`);
     return EXIT.USAGE;
   }
   const { values, positionals } = parsed;
   const [command, ...rest] = positionals;
 
+  // CLI-level language (flag only; scan additionally honours devgu.config.json).
+  const flagLang = values.lang?.toLowerCase();
+  if (flagLang !== undefined && !isLang(flagLang)) {
+    io.stderr(`${messages(DEFAULT_LANG).cli.unknownLang(values.lang ?? "")}\n`);
+    return EXIT.USAGE;
+  }
+  const cliLang: Lang = isLang(flagLang) ? flagLang : DEFAULT_LANG;
+
   if (values.help || command === undefined) {
-    io.stdout(HELP);
+    io.stdout(helpText(cliLang));
     return command === undefined && !values.help ? EXIT.USAGE : EXIT.OK;
   }
 
@@ -88,17 +143,17 @@ export async function main(argv: string[], io: Io, signal?: AbortSignal): Promis
         io.stdout(`${TOOL_VERSION}\n`);
         return EXIT.OK;
       case "rules":
-        return runRulesCommand(rest, io);
+        return runRulesCommand(rest, io, cliLang);
       case "cache":
         if (rest[0] !== "clear") return usage(io, "Usage: devgu cache clear");
         await clearCache();
-        io.stdout(`Cache cleared (${defaultCacheDir()})\n`);
+        io.stdout(`${messages(cliLang).cli.cacheCleared(defaultCacheDir())}\n`);
         return EXIT.OK;
       case "config":
         if (rest[0] !== "init") return usage(io, "Usage: devgu config init");
-        return await configInit(io);
+        return await configInit(io, cliLang);
       case "scan":
-        return await runScan(rest, values, io, signal);
+        return await runScan(rest, values, io, cliLang, signal);
       default:
         return usage(io, `Unknown command: ${stripControlChars(command)}`);
     }
@@ -119,30 +174,39 @@ function usage(io: Io, message: string): number {
   return EXIT.USAGE;
 }
 
-function runRulesCommand(args: string[], io: Io): number {
+function runRulesCommand(args: string[], io: Io, lang: Lang): number {
+  const tr = lang === "tr";
   const rules = ruleCatalog();
   if (args[0] === "list") {
     const rows = rules.map(
       (m) =>
-        `${m.id.padEnd(16)} ${m.severity.padEnd(8)} ${m.confidence.padEnd(6)} ${m.engine.padEnd(9)} ${m.name}`,
+        `${m.id.padEnd(16)} ${m.severity.padEnd(8)} ${m.confidence.padEnd(6)} ${m.engine.padEnd(9)} ${loc(m.name, lang)}`,
     );
-    io.stdout(`${rows.join("\n")}\n${rules.length} rule(s)\n`);
+    io.stdout(`${rows.join("\n")}\n${rules.length} ${tr ? "kural" : "rule(s)"}\n`);
     return EXIT.OK;
   }
   if (args[0] === "explain" && args[1]) {
     const rule = rules.find((r) => r.id.toLowerCase() === args[1]?.toLowerCase());
-    if (!rule) return usage(io, `Unknown rule: ${stripControlChars(args[1])}`);
+    if (!rule)
+      return usage(
+        io,
+        `${tr ? "Bilinmeyen kural" : "Unknown rule"}: ${stripControlChars(args[1])}`,
+      );
     const m = rule;
     io.stdout(
       [
-        `${m.id}  ${m.name}`,
-        `Engine: ${m.engine}   Category: ${m.category}   Severity: ${m.severity}   Confidence: ${m.confidence}`,
+        `${m.id}  ${loc(m.name, lang)}`,
+        tr
+          ? `Motor: ${m.engine}   Kategori: ${m.category}   Şiddet: ${m.severity}   Güven: ${m.confidence}`
+          : `Engine: ${m.engine}   Category: ${m.category}   Severity: ${m.severity}   Confidence: ${m.confidence}`,
         "",
-        m.description,
+        loc(m.description, lang),
         "",
-        `Remediation: ${m.remediation}`,
-        `Limitations: ${m.limitations}`,
-        ...(m.references.length ? ["References:", ...m.references.map((r) => `  ${r}`)] : []),
+        `${tr ? "Çözüm" : "Remediation"}: ${loc(m.remediation, lang)}`,
+        `${tr ? "Sınırlamalar" : "Limitations"}: ${loc(m.limitations, lang)}`,
+        ...(m.references.length
+          ? [`${tr ? "Kaynaklar" : "References"}:`, ...m.references.map((r) => `  ${r}`)]
+          : []),
         "",
       ].join("\n"),
     );
@@ -151,7 +215,8 @@ function runRulesCommand(args: string[], io: Io): number {
   return usage(io, "Usage: devgu rules list | devgu rules explain <id>");
 }
 
-async function configInit(io: Io): Promise<number> {
+async function configInit(io: Io, lang: Lang): Promise<number> {
+  const tr = lang === "tr";
   const target = path.join(io.cwd ?? process.cwd(), CONFIG_FILE_NAME);
   const template = {
     exclude: [],
@@ -159,6 +224,7 @@ async function configInit(io: Io): Promise<number> {
     maxFileSizeBytes: 1_000_000,
     maxFiles: 50_000,
     failOn: "HIGH",
+    lang,
     suppressions: [],
     secrets: { allowlist: [] },
   };
@@ -166,10 +232,10 @@ async function configInit(io: Io): Promise<number> {
     await writeFile(target, JSON.stringify(template, null, 2) + "\n", { flag: "wx" });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST")
-      return usage(io, `${CONFIG_FILE_NAME} already exists`);
+      return usage(io, `${CONFIG_FILE_NAME} ${tr ? "zaten var" : "already exists"}`);
     throw error;
   }
-  io.stdout(`Created ${target}\n`);
+  io.stdout(`${tr ? "Oluşturuldu" : "Created"} ${target}\n`);
   return EXIT.OK;
 }
 
@@ -183,13 +249,29 @@ type ScanValues = {
   config?: string;
   "fail-on"?: string;
   "no-cache"?: boolean;
+  lang?: string;
   quiet?: boolean;
 };
+
+/** Rule metadata resolved to plain strings in `lang`, for SARIF rule descriptors. */
+function localizedCatalog(lang: Lang): RuleDescriptor[] {
+  return ruleCatalog().map((m) => ({
+    id: m.id,
+    name: loc(m.name, lang),
+    description: loc(m.description, lang),
+    remediation: loc(m.remediation, lang),
+    limitations: loc(m.limitations, lang),
+    references: m.references,
+    severity: m.severity,
+    category: m.category,
+  }));
+}
 
 async function runScan(
   args: string[],
   values: ScanValues,
   io: Io,
+  cliLang: Lang,
   signal?: AbortSignal,
 ): Promise<number> {
   if (args.length > 1) return usage(io, "Usage: devgu scan [path]");
@@ -209,6 +291,8 @@ async function runScan(
     ...(values.config ? { configPath: path.resolve(io.cwd ?? process.cwd(), values.config) } : {}),
   });
   const failOn = failOnParsed?.success ? failOnParsed.data : config.failOn;
+  // Flag wins; otherwise the config's language; otherwise the default.
+  const lang: Lang = values.lang !== undefined ? cliLang : (config.lang ?? DEFAULT_LANG);
 
   const selected = [
     values.security && "security",
@@ -223,18 +307,20 @@ async function runScan(
   );
 
   const showProgress = !values.quiet && io.isTTY === true && format !== "text";
+  const scanningWord = messages(lang).cli.scanning;
   const result = await scan({
     root,
     rules,
     config,
     analyzers,
+    lang,
     redact: defaultRedactor(),
     useCache: !values["no-cache"],
     ...(signal ? { signal } : {}),
     ...(showProgress
       ? {
           onProgress: (p: { done: number; total: number }) =>
-            io.stderr(`\rScanning ${p.done}/${p.total}`),
+            io.stderr(`\r${scanningWord} ${p.done}/${p.total}`),
         }
       : {}),
   });
@@ -242,13 +328,14 @@ async function runScan(
 
   const report = renderReport(format, result, {
     color: io.isTTY === true && !values.output,
-    rules: ruleCatalog(),
+    rules: localizedCatalog(lang),
   });
   if (values.output) {
     const target = path.resolve(io.cwd ?? process.cwd(), values.output);
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, report);
-    if (!values.quiet) io.stderr(`Report written to ${target}\n`);
+    if (!values.quiet)
+      io.stderr(`${lang === "tr" ? "Rapor yazıldı" : "Report written to"} ${target}\n`);
   } else {
     io.stdout(report);
   }

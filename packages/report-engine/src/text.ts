@@ -1,4 +1,10 @@
-import { SEVERITIES, stripControlChars, type Finding, type ScanResult } from "@devgu/shared";
+import {
+  messages,
+  SEVERITIES,
+  stripControlChars,
+  type Finding,
+  type ScanResult,
+} from "@devgu/shared";
 
 const COLORS: Record<string, string> = {
   CRITICAL: "\u001b[1;31m",
@@ -40,18 +46,23 @@ export function renderText(result: ScanResult, options: { color?: boolean } = {}
     out.push("");
   }
 
+  const m = messages(result.meta.lang).text;
   const counts = SEVERITIES.filter((s) => result.stats.findingsBySeverity[s] > 0)
     .map((s) => `${result.stats.findingsBySeverity[s]} ${s.toLowerCase()}`)
     .join(", ");
+  out.push(m.findingsLine(result.findings.length, counts, result.suppressed.length));
   out.push(
-    `${result.findings.length} finding(s)${counts ? ` (${counts})` : ""}, ${result.suppressed.length} suppressed`,
-  );
-  out.push(
-    `${result.stats.filesScanned} file(s) scanned, ${result.stats.filesSkipped} skipped, cache ${result.stats.cacheHits}/${result.stats.cacheHits + result.stats.cacheMisses}, ${result.stats.totalMs} ms`,
+    m.filesLine(
+      result.stats.filesScanned,
+      result.stats.filesSkipped,
+      result.stats.cacheHits,
+      result.stats.cacheHits + result.stats.cacheMisses,
+      result.stats.totalMs,
+    ),
   );
   for (const d of result.diagnostics) {
     out.push(
-      `warning: ${safe(d.source)}${d.filePath ? ` ${safe(d.filePath)}` : ""}: ${safe(d.message)}`,
+      `${m.warning}: ${safe(d.source)}${d.filePath ? ` ${safe(d.filePath)}` : ""}: ${safe(d.message)}`,
     );
   }
   return out.join("\n") + "\n";

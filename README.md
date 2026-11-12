@@ -28,6 +28,7 @@ DEVGU; yapay zekâ kullanmayan, yerel çalışan ve deterministik bir kod güven
 | Taint analizi: kaynak → sink veri akışı yolu, temizleyiciler, güven seviyesi (tek dosya içi)         | Hazır                             |
 | Bağımlılık güvenliği: `package-lock.json` + OSV, CVSS v3, çevrimdışı önbellek                        | Hazır                             |
 | Raporlar: metin, JSON, **SARIF 2.1.0**, Markdown, CSP korumalı tek dosyalık **HTML**                 | Hazır                             |
+| Çok dilli çıktı: **Türkçe / İngilizce** (`--lang tr\|en`, varsayılan `en`; `devgu.config.json` ile)  | Hazır                             |
 | Gerekçeli bastırma, artımlı önbellek, anlamlı çıkış kodları                                          | Hazır                             |
 | `yarn.lock` / `pnpm-lock.yaml`, fonksiyonlar arası taint, import grafı ve döngüsel bağımlılık        | Planlı ([ROADMAP.md](ROADMAP.md)) |
 | Masaüstü arayüzü, eklenti SDK'sı, performans/karmaşıklık motorları                                   | Kapsam dışı                       |
@@ -57,14 +58,17 @@ devgu scan . --secrets                        # yalnızca gizli anahtar taramas�
 devgu scan . --dependencies --online          # OSV ile zafiyetli bağımlılıklar
 devgu scan . -f sarif -o devgu.sarif          # GitHub Code Scanning için
 devgu scan . -f html -o rapor.html            # tek dosyalık HTML rapor
+devgu scan . --lang tr                         # Türkçe bulgu ve rapor çıktısı
 devgu scan . --fail-on medium                 # MEDIUM ve üstünde çıkış kodu 1
+devgu rules explain JS-TAINT-001 --lang tr    # kuralı Türkçe açıkla
 devgu rules list
-devgu rules explain JS-TAINT-001
 devgu config init                             # devgu.config.json oluştur
 devgu cache clear
 ```
 
 Çıkış kodları: `0` başarılı, `1` eşik üstü bulgu var, `2` kullanım hatası, `3` çalışma hatası, `130` iptal.
+
+**Çıktı dili:** Bulgu metinleri, rapor etiketleri ve CLI iletileri Türkçe veya İngilizce üretilir. Öncelik sırası: `--lang` bayrağı → `devgu.config.json` içindeki `"lang"` → varsayılan (`en`). Dil tarama anında sabitlenir; JSON/SARIF çıktısı `meta.lang` alanıyla hangi dilde üretildiğini belirtir. Kural kataloğu her iki dilde de hazırdır: [docs/RULES.md](docs/RULES.md) (EN), [docs/RULES.tr.md](docs/RULES.tr.md) (TR).
 
 **Ağ erişimi:** yalnızca `--online` verilirse ve yalnızca `api.osv.dev` adresine, sadece paket adı ve sürümleri gönderilir. Kaynak kod hiçbir zaman gönderilmez. Sonuçlar yerel önbelleğe yazılır; sonraki taramalar çevrimdışı çalışır.
 

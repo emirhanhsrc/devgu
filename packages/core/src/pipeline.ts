@@ -3,11 +3,13 @@ import path from "node:path";
 import { createSourceFile } from "@devgu/parser";
 import { isRuleEnabled, rulesetFingerprint, runRules, type Rule } from "@devgu/rule-engine";
 import {
+  DEFAULT_LANG,
   SEVERITIES,
   TOOL_VERSION,
   sha256Hex,
   type Diagnostic,
   type Finding,
+  type Lang,
   type ScanResult,
   type SkippedFile,
 } from "@devgu/shared";
@@ -28,6 +30,7 @@ export interface ProjectAnalyzer {
   run(context: {
     root: string;
     files: readonly DiscoveredFile[];
+    lang: Lang;
     signal?: AbortSignal;
   }): Promise<{ findings: Finding[]; diagnostics: Diagnostic[] }>;
 }
@@ -37,6 +40,8 @@ export interface ScanOptions {
   rules: readonly Rule[];
   config?: DevguConfig;
   analyzers?: readonly ProjectAnalyzer[];
+  /** Language for all human-readable finding and report text. Defaults to English. */
+  lang?: Lang;
   /** Removes secrets from any text that ends up in a finding. */
   redact?: (text: string) => string;
   useCache?: boolean;
@@ -78,6 +83,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const config = options.config ?? defaultConfig();
   const redact = options.redact ?? ((text: string) => text);
   const settings = config.rules;
+  const lang = options.lang ?? DEFAULT_LANG;
   const activeRules = options.rules.filter((rule) => isRuleEnabled(rule.meta, settings));
 
   const discovery = await discoverFiles({
@@ -86,7 +92,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     ...(options.signal ? { signal: options.signal } : {}),
   });
   const configKey = sha256Hex(
-    `${TOOL_VERSION}|${rulesetFingerprint(options.rules, settings)}|${config.secrets.allowlist.join(",")}`,
+    `${TOOL_VERSION}|${lang}|${rulesetFingerprint(options.rules, settings)}|${config.secrets.allowlist.join(",")}`,
   ).slice(0, 32);
   const cache =
     options.useCache === false
@@ -138,7 +144,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     }
 
     const ruleStart = performance.now();
-    const run = runRules(sourceFile, activeRules, settings);
+    const run = runRules(sourceFile, activeRules, settings, lang);
     ruleMs += performance.now() - ruleStart;
     diagnostics.push(...run.diagnostics);
 
@@ -166,6 +172,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
       const result = await analyzer.run({
         root: discovery.root,
         files: discovery.files,
+        lang,
         ...(options.signal ? { signal: options.signal } : {}),
       });
       findings.push(...result.findings.map((finding) => redactFinding(finding, redact)));
@@ -202,6 +209,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
       tool: "devgu",
       toolVersion: TOOL_VERSION,
       rulesetVersion: rulesetFingerprint(options.rules, settings),
+      lang,
       scannedAt: new Date().toISOString(),
       rootName: path.basename(discovery.root) || "root",
       engines: [
