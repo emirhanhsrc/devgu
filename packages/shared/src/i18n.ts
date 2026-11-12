@@ -416,6 +416,20 @@ export interface HtmlStrings {
     skippedTpl: string;
     noFindings: string;
     noMatch: string;
+    chartSeverity: string;
+    chartFiles: string;
+    chartRules: string;
+    chartTotal: string;
+    chartSeveritySub: string;
+    chartConfidence: string;
+    chartFilesSub: string;
+    chartRulesSub: string;
+    chartHeat: string;
+    chartHeatSub: string;
+    winMinimize: string;
+    winMaximize: string;
+    winClose: string;
+    winRestore: string;
   };
 }
 
@@ -465,6 +479,20 @@ const HTML_EN: HtmlStrings = {
     skippedTpl: "Skipped {file} ({reason})",
     noFindings: "No findings. This does not prove the code is safe; see each rule's limitations.",
     noMatch: "No findings match the current filters.",
+    chartSeverity: "By severity",
+    chartFiles: "Most affected files",
+    chartRules: "Most triggered rules",
+    chartTotal: "findings",
+    chartSeveritySub: "Outer ring: severity · inner ring: confidence",
+    chartConfidence: "confidence",
+    chartFilesSub: "Share of all open findings",
+    chartRulesSub: "Share of all open findings",
+    chartHeat: "Severity × category",
+    chartHeatSub: "Brighter squares mean more findings",
+    winMinimize: "Minimize",
+    winMaximize: "Maximize / restore",
+    winClose: "Close",
+    winRestore: "Restore",
   },
 };
 
@@ -515,6 +543,20 @@ const HTML_TR: HtmlStrings = {
     noFindings:
       "Bulgu yok. Bu, kodun güvenli olduğunu kanıtlamaz; her kuralın sınırlamalarına bakın.",
     noMatch: "Geçerli filtrelerle eşleşen bulgu yok.",
+    chartSeverity: "Önem derecesine göre",
+    chartFiles: "En çok bulgu olan dosyalar",
+    chartRules: "En çok tetiklenen kurallar",
+    chartTotal: "bulgu",
+    chartSeveritySub: "Dış halka: önem · iç halka: güven düzeyi",
+    chartConfidence: "güven",
+    chartFilesSub: "Tüm açık bulgular içindeki pay",
+    chartRulesSub: "Tüm açık bulgular içindeki pay",
+    chartHeat: "Önem × kategori",
+    chartHeatSub: "Parlak kareler daha çok bulgu demek",
+    winMinimize: "Alta al",
+    winMaximize: "Büyüt / küçült",
+    winClose: "Kapat",
+    winRestore: "Geri getir",
   },
 };
 

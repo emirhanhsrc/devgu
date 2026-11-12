@@ -1,4 +1,6 @@
+import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -14,8 +16,10 @@ import {
   scan,
 } from "@devgu/core";
 import {
+  EDITOR_SCHEMES,
   REPORT_FORMATS,
   renderReport,
+  type EditorScheme,
   type ReportFormat,
   type RuleDescriptor,
 } from "@devgu/report-engine";
@@ -53,6 +57,9 @@ Usage:
 Scan options:
   -f, --format <fmt>     ${REPORT_FORMATS.join(" | ")} (default: text)
   -o, --output <file>    Write the report to a file instead of stdout
+      --editor <name>    HTML: make file:line clickable in vscode | vscode-insiders | cursor | windsurf
+                         (embeds the local project path; default with --open: vscode)
+      --open             Write an HTML report and open it in the default browser
       --lang <tr|en>     Output language for findings and reports (default: en)
       --security         Run only security (pattern + taint) rules
       --secrets          Run only secret detection
@@ -79,6 +86,9 @@ Kullanım:
 Tarama seçenekleri:
   -f, --format <biçim>   ${REPORT_FORMATS.join(" | ")} (varsayılan: text)
   -o, --output <dosya>   Raporu stdout yerine bir dosyaya yaz
+      --editor <ad>      HTML: dosya:satır tıklanınca editörde aç (vscode | vscode-insiders | cursor | windsurf)
+                         (yerel proje yolunu rapora gömer; --open ile varsayılan: vscode)
+      --open             HTML raporu yaz ve varsayılan tarayıcıda aç
       --lang <tr|en>     Bulgu ve raporların dili (varsayılan: en)
       --security         Yalnızca güvenlik (desen + taint) kurallarını çalıştır
       --secrets          Yalnızca gizli anahtar taraması
@@ -113,6 +123,8 @@ export async function main(argv: string[], io: Io, signal?: AbortSignal): Promis
         "fail-on": { type: "string" },
         "no-cache": { type: "boolean" },
         lang: { type: "string" },
+        open: { type: "boolean" },
+        editor: { type: "string" },
         quiet: { type: "boolean", short: "q" },
         help: { type: "boolean", short: "h" },
       },
@@ -250,6 +262,8 @@ type ScanValues = {
   "fail-on"?: string;
   "no-cache"?: boolean;
   lang?: string;
+  open?: boolean;
+  editor?: string;
   quiet?: boolean;
 };
 
@@ -267,6 +281,18 @@ function localizedCatalog(lang: Lang): RuleDescriptor[] {
   }));
 }
 
+function openInBrowser(file: string): void {
+  const [cmd, args]: [string, string[]] =
+    process.platform === "darwin"
+      ? ["open", [file]]
+      : process.platform === "win32"
+        ? ["cmd", ["/c", "start", "", file]]
+        : ["xdg-open", [file]];
+  const child = spawn(cmd, args, { stdio: "ignore", detached: true });
+  child.on("error", () => undefined);
+  child.unref();
+}
+
 async function runScan(
   args: string[],
   values: ScanValues,
@@ -275,7 +301,7 @@ async function runScan(
   signal?: AbortSignal,
 ): Promise<number> {
   if (args.length > 1) return usage(io, "Usage: devgu scan [path]");
-  const format = (values.format ?? "text") as ReportFormat;
+  const format = (values.format ?? (values.open ? "html" : "text")) as ReportFormat;
   if (!REPORT_FORMATS.includes(format))
     return usage(io, `Unknown format: ${stripControlChars(values.format ?? "")}`);
   const failOnParsed =
@@ -284,6 +310,10 @@ async function runScan(
       : SeveritySchema.safeParse(values["fail-on"].toUpperCase());
   if (failOnParsed && !failOnParsed.success)
     return usage(io, `Invalid --fail-on: ${stripControlChars(values["fail-on"] ?? "")}`);
+
+  const editorName = values.editor ?? (values.open ? "vscode" : undefined);
+  if (editorName !== undefined && !(EDITOR_SCHEMES as readonly string[]).includes(editorName))
+    return usage(io, `Unknown editor: ${stripControlChars(editorName)}`);
 
   const root = path.resolve(io.cwd ?? process.cwd(), args[0] ?? ".");
   const config = await loadConfig({
@@ -327,15 +357,20 @@ async function runScan(
   if (showProgress) io.stderr("\r\u001b[K");
 
   const report = renderReport(format, result, {
-    color: io.isTTY === true && !values.output,
+    color: io.isTTY === true && !values.output && !values.open,
     rules: localizedCatalog(lang),
+    ...(editorName ? { editor: { scheme: editorName as EditorScheme, root } } : {}),
   });
-  if (values.output) {
-    const target = path.resolve(io.cwd ?? process.cwd(), values.output);
+  const outputPath =
+    values.output ??
+    (values.open ? path.join(os.tmpdir(), `devgu-report-${Date.now()}.html`) : undefined);
+  if (outputPath) {
+    const target = path.resolve(io.cwd ?? process.cwd(), outputPath);
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, report);
     if (!values.quiet)
       io.stderr(`${lang === "tr" ? "Rapor yazıldı" : "Report written to"} ${target}\n`);
+    if (values.open) openInBrowser(target);
   } else {
     io.stdout(report);
   }
